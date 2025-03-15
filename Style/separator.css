@@ -1,0 +1,5 @@
+@import "colors.css";
+
+.separator{
+    background-color: var(--overlay-0);
+}

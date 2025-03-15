@@ -1,0 +1,5 @@
+assets/
+temp/
+.cache/
+build/
+compile_commands.json

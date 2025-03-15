@@ -1,0 +1,20 @@
+@import 'colors.css';
+
+
+.progress_bar_class {
+    background-color: transparent;
+    border-radius: 4px;
+}
+
+
+.progress_bar_class slider {
+    background-color: transparent;
+    border-radius: 4px;
+    box-shadow: none;
+    border: none;
+}
+
+.progress_bar_class trough highlight {
+    background-color: var(--rosewater);
+}
+

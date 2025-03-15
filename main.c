@@ -1,0 +1,368 @@
+#include <pthread.h>
+#include <gtk/gtk.h>
+#include <gdk/gdk.h>
+#include <string.h>
+#include "gio/gio.h"
+#include "glib.h"
+#include "gtk/gtkshortcut.h"
+#include "pipewire/stream.h"
+#include "src/audio.h"
+#include "src/e_widgets.h"
+#include "src/ewindows.h"
+#include "src/utils.h"
+#include "src/constants.h"
+
+typedef struct {
+    char filename[512];
+    volume_data *volume;
+    double music_duration;
+} AudioTaskData;
+
+static GTask *current_task = NULL;
+static GCancellable *current_cancellable = NULL;
+static guint progress_timer_id = 0;
+
+static void play_audio_task(GTask *task, gpointer source_object, gpointer task_data, GCancellable *cancellable) {
+    AudioTaskData *data = (AudioTaskData *) g_task_get_task_data(task);
+    if (!data) {
+        printf("Error: no filename\n");
+        return;
+    }
+    play_audio(data->filename, data->volume, cancellable, &paused);
+}
+
+static void on_volume_changed(GtkRange *range, gpointer user_data) {
+    if(!user_data) return;
+    last_volume = gtk_range_get_value(GTK_RANGE(range));
+    ((volume_data *)user_data)->volume = last_volume;
+}
+
+void create_slider(GtkWidget *slider, volume_data *volume) {
+    if(!GTK_IS_RANGE(slider) || !volume) {
+        printf("Erro: falha ao criar slider\n");
+        return;
+    }
+    g_signal_handlers_disconnect_by_func(slider, (gpointer)on_volume_changed, NULL);
+    g_signal_connect(slider, "value-changed", G_CALLBACK(on_volume_changed), volume);
+    gtk_range_set_value(GTK_RANGE(slider), last_volume);
+}
+
+static void on_task_completed(GObject *source_object, GAsyncResult *res, gpointer user_data) {
+    GTask *task = G_TASK(source_object);
+    if (G_IS_TASK(task)) {
+        g_object_unref(task); 
+    }
+    printf(RED_COLOR "[LOG] Task finalizada e recursos liberados.\n" RESET_COLOR);
+}
+
+static void animate_progress_bar(GtkWidget *widget, gpointer user_data) {
+    if(user_data == NULL) return;
+    double fraction = *(double *)user_data;
+
+    gtk_range_set_value(GTK_RANGE(widget), fraction);
+}
+
+static gboolean update_progress_bar(gpointer user_data) {
+    WidgetsData *data = (WidgetsData *)user_data;
+    if (!data || !GTK_IS_RANGE(data->progress_bar)) {
+        return G_SOURCE_REMOVE; 
+    }
+
+    if (data->elapsed_time >= data->music_duration) {
+        gtk_range_set_value(GTK_RANGE(data->progress_bar), 1.0);
+        return G_SOURCE_REMOVE;
+    }
+
+    gdouble fraction = data->elapsed_time / data->music_duration;
+    gtk_range_set_value(GTK_RANGE(data->progress_bar), fraction);
+
+    if(paused == FALSE)
+        data->elapsed_time += 0.1;
+    return G_SOURCE_CONTINUE;
+}
+
+static gboolean pause_audio(GtkWidget *button, gpointer user_data) {
+    WidgetsData *data = (WidgetsData *)user_data;
+    struct data *audio_data = g_object_get_data(G_OBJECT(button), "audio_data");
+    g_mutex_lock(&paused_mutex);
+    paused = !paused;
+    if(audio_data && audio_data->stream){
+        pw_stream_set_active(audio_data->stream, paused);
+    }
+    g_mutex_unlock(&paused_mutex);
+    if (paused) {
+        gtk_button_set_icon_name(GTK_BUTTON(button), "media-playback-pause");
+    } else {
+        gtk_button_set_icon_name(GTK_BUTTON(button), "media-playback-start");
+    }
+
+    return FALSE;
+}
+
+void play_selected_music(GtkListBox *box, GtkListBoxRow *row, gpointer user_data) {
+    if (row == NULL || user_data == NULL) {
+        printf("Erro: falha ao executar play_selected_music\n");
+        return;
+    }
+
+    GtkWidget *label = gtk_list_box_row_get_child(row);
+    WidgetsData *widgets_data = (WidgetsData *) user_data;
+
+    if (!label || !widgets_data) {
+        printf("Erro: Falha ao criar label ou WidgetsData\n");
+        return;
+    }
+
+    if(!GTK_RANGE(widgets_data->progress_bar) || !GTK_IS_RANGE(widgets_data->volume_slider)){
+        printf("Erro: falha ao alocar WidgetsData\n");
+        return;
+    }
+    const char *filename = gtk_label_get_text(GTK_LABEL(label));
+    if (!filename || strlen(filename) == 0) return;
+
+    AudioTaskData *data = g_new0(AudioTaskData, 1);
+    if (!data) {
+        printf("Erro: falha ao alocar AudioTaskData\n");
+        return;
+    }
+
+    if (current_cancellable && !g_cancellable_is_cancelled(current_cancellable)) {
+        g_cancellable_cancel(current_cancellable);
+    }
+
+    data->volume = g_new0(volume_data, 1);
+    if (!data->volume) {
+        printf("Erro: falha ao alocar volume_data\n");
+        g_free(data);
+        return;
+    }
+
+    paused = FALSE;
+    gtk_button_set_icon_name(GTK_BUTTON(widgets_data->music_button), "media-playback-start");
+    data->volume->volume = last_volume;
+    snprintf(data->filename, sizeof(data->filename), "%s%s", SYM_AUDIO_DIR, filename);
+    data->music_duration = get_duration_from_file(data->filename);
+    create_slider(GTK_WIDGET(widgets_data->volume_slider), data->volume);
+    // gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(widgets_data->progress_bar), 0.0);
+    gtk_range_set_value(GTK_RANGE(widgets_data->progress_bar), 0.0);
+    widgets_data->music_duration = data->music_duration;
+    widgets_data->elapsed_time = 0.0;
+
+
+    if(progress_timer_id != 0){
+        if(g_source_remove(progress_timer_id) == 0){
+            g_print("Timer removido\n");
+        }
+        progress_timer_id = 0;
+    }
+
+    GTask *old_task = NULL;
+    GCancellable *old_cancellable = NULL;
+
+    static GMutex mutex;
+    g_mutex_lock(&mutex);
+
+    if (current_cancellable && !g_cancellable_is_cancelled(current_cancellable)) {
+        printf(RED_COLOR "Cancelando áudio atual...\n" RESET_COLOR);
+        g_cancellable_cancel(current_cancellable);
+        old_cancellable = current_cancellable; 
+        current_cancellable = NULL;
+    }
+
+    if (current_task) {
+        old_task = current_task; 
+        current_task = NULL;
+    }
+
+    current_cancellable = g_cancellable_new();
+    current_task = g_task_new(NULL, current_cancellable, on_task_completed, NULL); 
+    g_task_set_task_data(current_task, data, g_free);
+    g_task_run_in_thread(current_task, play_audio_task);
+    g_task_set_check_cancellable(current_task, TRUE);
+    progress_timer_id = g_timeout_add(100, update_progress_bar, widgets_data);
+    g_object_set_data(G_OBJECT(widgets_data->music_button), "audio-data", data);
+    g_mutex_unlock(&mutex);
+
+    if (old_cancellable) g_object_unref(old_cancellable);
+    if (old_task) g_object_unref(old_task);
+   
+}
+
+static void on_window_destroy(GtkWidget *widget, gpointer user_data) {
+    static GMutex mutex;
+    g_mutex_lock(&mutex);
+    if (progress_timer_id != 0) {
+        if(g_source_remove(progress_timer_id) == 0){
+            g_print("Timer removido\n");
+        }
+        progress_timer_id = 0;
+    }
+    g_mutex_unlock(&mutex);
+    if (user_data) {
+        g_free(user_data);
+    }
+}
+
+void on_activate(GtkApplication *app, gpointer user_data) {
+    GtkWidget *window = gtk_application_window_new(app);
+    gtk_window_set_title(GTK_WINDOW(window), "Background");
+    gtk_window_set_default_size(GTK_WINDOW(window), 650, 200);
+    gtk_window_set_resizable(GTK_WINDOW(window), FALSE);
+    gtk_widget_set_hexpand(GTK_WIDGET(window), FALSE);
+    gtk_widget_set_vexpand(GTK_WIDGET(window), FALSE);
+    gtk_widget_add_css_class(GTK_WIDGET(window), "main_window_class");
+    
+    GFile *css_file = get_file_from_path();
+
+    GtkWidget *main_grid = gtk_grid_new();
+    gtk_grid_set_row_spacing(GTK_GRID(main_grid), 5);
+    
+
+    WidgetsData *widgets_data = g_new0(WidgetsData, 1);
+    if (!widgets_data) {
+        printf("Erro: falha ao alocar WidgetsData\n");
+        return;
+    }
+
+    GtkWidget* music_display_content = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);
+    gtk_widget_set_size_request(music_display_content, 650, 10);
+    GtkWidget *slider = gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL, 0, 1, 0.01);
+    gtk_widget_set_size_request(slider, 300, 5);
+    gtk_widget_add_css_class(music_display_content, "music_display_content_class");
+    gtk_box_append(GTK_BOX(music_display_content), slider);
+    GtkWidget *progress_bar = gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL, 0, 1, 0.01);
+    gtk_widget_add_css_class(GTK_WIDGET(progress_bar), "progress_bar_class");
+    gtk_widget_set_size_request(progress_bar, 300, 6);
+    gtk_widget_set_valign(progress_bar, GTK_ALIGN_CENTER);
+    gtk_box_append(GTK_BOX(music_display_content), progress_bar);
+    GtkWidget *music_button = gtk_button_new_from_icon_name("media-playback-start");
+    gtk_widget_set_valign(music_button, GTK_ALIGN_CENTER);
+    gtk_widget_add_css_class(GTK_WIDGET(music_button), "music_button_class");
+    gtk_widget_set_size_request(music_button, 10, 5);
+    gtk_box_append(GTK_BOX(music_display_content), music_button);
+    gtk_widget_set_cursor_from_name(music_button, "hand2");
+
+    widgets_data->music_display_content = music_display_content;
+    widgets_data->volume_slider = slider;
+    widgets_data->progress_bar = progress_bar;
+    widgets_data->music_button = music_button;
+
+
+    GtkCssProvider *provider = gtk_css_provider_new();
+    gtk_css_provider_load_from_file(provider, css_file);
+    gtk_style_context_add_provider_for_display(gdk_display_get_default(), GTK_STYLE_PROVIDER(provider), GTK_STYLE_PROVIDER_PRIORITY_USER);
+
+    GtkWidget *grid = gtk_grid_new();
+    gtk_widget_set_halign(grid, GTK_ALIGN_CENTER);
+    gtk_widget_set_valign(grid, GTK_ALIGN_END);
+    gtk_window_set_child(GTK_WINDOW(window), main_grid);
+
+    GtkWidget *menu_button = gtk_menu_button_new();
+    gtk_widget_set_valign(menu_button, GTK_ALIGN_START);
+    gtk_widget_set_halign(menu_button, GTK_ALIGN_START);
+    gtk_widget_set_size_request(menu_button, 50, 10);
+    gtk_menu_button_set_label(GTK_MENU_BUTTON(menu_button), "Options");
+    gtk_widget_add_css_class(menu_button, "menu_button");
+
+    GtkWidget *popover = gtk_popover_new();
+    gtk_popover_set_has_arrow(GTK_POPOVER(popover), FALSE);
+    gtk_menu_button_set_popover(GTK_MENU_BUTTON(menu_button), popover);
+    gtk_popover_set_default_widget(GTK_POPOVER(popover), menu_button);
+    gtk_widget_add_css_class(popover, "popover");
+    
+    GtkWidget *popover_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
+    gtk_popover_set_child(GTK_POPOVER(popover), popover_box);
+    gtk_widget_add_css_class(popover_box, "popover_box");
+
+    GtkWidget *list_box = gtk_list_box_new();
+    gtk_list_box_set_selection_mode(GTK_LIST_BOX(list_box), GTK_SELECTION_BROWSE);
+    GtkWidget *duration_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+    gtk_grid_attach(GTK_GRID(grid), list_box, 0, 1, 1, 1);
+    gtk_grid_attach(GTK_GRID(grid), duration_box, 1, 1, 1, 1);
+
+    widgets_data->list_box = list_box;
+    widgets_data->duration_box = duration_box;
+
+    gtk_widget_add_css_class(widgets_data->list_box, "list_box");
+    gtk_widget_add_css_class(widgets_data->duration_box, "list_box_d");
+
+    gtk_widget_add_css_class(slider, "slider_main");
+    gtk_grid_attach(GTK_GRID(main_grid), menu_button, 0, 0, 1, 1);
+    gtk_grid_attach(GTK_GRID(main_grid), music_display_content, 0, 1, 1, 1);
+    gtk_grid_attach(GTK_GRID(main_grid), grid, 0, 2, 1, 1);
+
+
+    const char* popover_names[] = {"Select File", "Bindings", NULL};
+    gboolean popover_visible = FALSE;
+    size_t length = sizeof(popover_names) / sizeof(popover_names[0]);
+    for(int i = 0; i < length; i++){
+        if(!popover_names[i]) break;
+        GtkWidget *button = gtk_button_new_with_label(popover_names[i]);
+
+        if(strncmp(popover_names[i], "Select File", 11) == 0){
+            g_signal_connect(button, "clicked", G_CALLBACK(create_new_window), window);
+        }
+       
+        gtk_widget_add_css_class(button, "popover_button");
+        gtk_box_append(GTK_BOX(popover_box), button);
+    }
+
+    g_object_set_data(G_OBJECT(window), "play_selected_music", (gpointer)play_selected_music);
+    g_object_set_data(G_OBJECT(window), "widgets_data", widgets_data);
+    g_object_set_data(G_OBJECT(window), "grid_data", grid);
+
+
+    // tags 
+    GtkWidget *tag_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 250);
+    gtk_widget_set_halign(tag_box, GTK_ALIGN_CENTER);
+    gtk_widget_set_valign(tag_box, GTK_ALIGN_CENTER);
+    gtk_widget_set_size_request(tag_box, 650, 10);
+    gtk_widget_set_hexpand(tag_box, FALSE);
+    gtk_widget_set_vexpand(tag_box, FALSE);
+    GtkWidget *tag_label_name = gtk_label_new("Music Name");
+    GtkWidget *tag_label_duration = gtk_label_new("Duration");
+    gtk_widget_set_margin_start(tag_label_name, 200);
+    gtk_widget_set_halign(tag_label_name, GTK_ALIGN_END);
+    gtk_widget_set_halign(tag_label_duration, GTK_ALIGN_END);
+    gtk_widget_add_css_class(tag_box, "tag_box");
+    gtk_widget_add_css_class(tag_label_name, "tag_label_name");
+    gtk_widget_add_css_class(tag_label_duration, "tag_label_duration");
+    gtk_grid_attach(GTK_GRID(grid), tag_box, 0, 0, 2, 1);
+    gtk_box_append(GTK_BOX(tag_box), tag_label_name);
+    gtk_box_append(GTK_BOX(tag_box), tag_label_duration);
+
+        
+    if(g_file_test(SYM_AUDIO_DIR, G_FILE_TEST_EXISTS)){
+        g_print(CYAN_COLOR "[INFO] Pasta ja existe\n" RESET_COLOR);
+    } else {
+        mkdir(SYM_AUDIO_DIR, 0777);
+        g_print(GREEN_COLOR "[COMMAND] Pasta criada\n" RESET_COLOR);
+    }
+
+    create_music_list(SYM_AUDIO_DIR, widgets_data, grid, play_selected_music);
+
+    const gchar *home_dir = g_get_home_dir();
+    g_object_set_data_full(G_OBJECT(window), "home_dir", (gpointer)home_dir, g_free);
+    g_signal_connect(GTK_WIDGET(widgets_data->music_button), "clicked", G_CALLBACK(pause_audio), NULL);
+
+    g_object_unref(provider);
+    g_object_unref(css_file);
+    g_signal_connect(window, "destroy", G_CALLBACK(on_window_destroy), widgets_data);
+    
+    
+    gtk_widget_set_visible(window, TRUE);
+}
+
+int main(int argc, char *argv[]) {
+    GtkApplication *app = gtk_application_new("org.gtk.example", G_APPLICATION_DEFAULT_FLAGS);
+    g_signal_connect(app, "activate", G_CALLBACK(on_activate), NULL);
+    int status = g_application_run(G_APPLICATION(app), argc, argv);
+    if(current_task) {
+        g_cancellable_cancel(current_cancellable);
+        g_object_unref(current_cancellable);
+        g_object_unref(current_task);
+    }
+    g_object_unref(app);
+    return status;
+}
+
