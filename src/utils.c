@@ -133,12 +133,12 @@ music_list_t list_files_musics(const char* dir) {
 
 GFile* get_file_from_path() {
     GFile *css_file;
-    if(g_file_test("/home/deyvis/Documents/Soundpadlinux/Style/style.css", G_FILE_TEST_EXISTS)) {
-        css_file = g_file_new_for_path("/home/deyvis/Documents/Soundpadlinux/Style/style.css");
+    if(g_file_test("Style/style.css", G_FILE_TEST_EXISTS)) {
+        css_file = g_file_new_for_path("Style/style.css");
     } else {
-        mkdir("/home/deyvis/Documents/Soundpadlinux/Style", 0777);
-        system("touch /home/deyvis/Documents/Soundpadlinux/Style/style.css");
-        css_file = g_file_new_for_path("/home/deyvis/Documents/Soundpadlinux/Style/style.css");
+        mkdir("Style", 0777);
+        system("touch Style/style.css");
+        css_file = g_file_new_for_path("Style/style.css");
     }
 
     return css_file;

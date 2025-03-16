@@ -96,7 +96,6 @@ void create_new_window(GtkWidget *window_parent, gpointer user_data) {
     GtkWidget *window = gtk_window_new();
     GtkEventController *controller = gtk_event_controller_key_new();
 
-
     const gchar css[] = {
         ".select_file_window {"
         "background-color: rgba(48,48,48,0.5);"
