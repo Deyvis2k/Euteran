@@ -1,8 +1,13 @@
 @import "colors.css";
 @import "progress_bar.css";
+@import "devices.css";
 
 .main_window_class{
     background-color: rgba(48,48,48,0.3);
+}
+
+.selected_music_class{
+    border: 0.3px ridge floralwhite;
 }
 
 .popover_button{
@@ -11,6 +16,11 @@
     color: floralwhite;
     font-size: 10px;
     font-family: "JetbrainsMono Nerd Font";
+}
+
+.duration_class{
+    border-left: 0.3px ridge floralwhite;
+    padding-left: 30px;
 }
 
 .popover_button:hover{
@@ -91,18 +101,6 @@
     color: var(--red);
 }
 
-.tag_label_duration{
-    font-size : 14px;
-    font-family: "JetbrainsMono Nerd Font";
-    color: var(--surface-0);
-}
-
-.tag_label_name {
-    font-size : 14px;
-    font-family: "JetbrainsMono Nerd Font";
-    color: var(--surface-0);
-}
-
 .tag_box {
     border: 0.3px ridge floralwhite;
 }
@@ -123,12 +121,7 @@
     background-color: rgba(220,138,120,0.8);
 }
 
-.list_box_d{
-    background-color: var(--rosewater);
-    color: white;
-    font-family: "JetbrainsMono Nerd Font";
-    font-size: 16px;
-}
+
 
 .music_button_class{
     background: transparent;

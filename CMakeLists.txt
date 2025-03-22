@@ -32,6 +32,8 @@ set(SOURCES
     src/utils.c
     src/ewindows.c
     src/e_widgets.c
+    src/audio_devices.c
+    src/widgets_devices.c
 )
 
 # Criar executável

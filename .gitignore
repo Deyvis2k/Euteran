@@ -3,3 +3,4 @@ temp/
 .cache/
 build/
 compile_commands.json
+*.txt

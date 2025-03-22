@@ -41,11 +41,12 @@ struct data {
 
 
 
+
+
 static void on_process(void *userdata);
 static void apply_volume(int16_t *buffer, size_t size, float volume);
 static const struct pw_stream_events stream_events;
 double get_duration(const char *music_path);
-void play_audio(const char *musicfile, volume_data *volume, GCancellable *cancellable, gboolean *paused);
-
+void play_audio(const char *musicfile, volume_data *volume, GCancellable *cancellable, gboolean *paused, GtkWidget *parent);
 
 #endif

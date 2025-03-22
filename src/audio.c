@@ -1,4 +1,5 @@
 #include "audio.h"
+#include "pipewire/keys.h"
 #include "pipewire/stream.h"
 #include <mpg123.h>
 #include <gio/gio.h>
@@ -91,13 +92,14 @@ double get_duration(const char *music_path) {
         duration = (double)frames / rate;
     }
 
+
     mpg123_close(mpg);
     mpg123_delete(mpg);
     mpg123_exit();
     return duration;
 }
 
-void play_audio(const char* musicfile, volume_data *volume, GCancellable *cancellable, gboolean *paused) {
+void play_audio(const char* musicfile, volume_data *volume, GCancellable *cancellable, gboolean *paused, GtkWidget *parent) {
     struct data data = { 0 };
     const struct spa_pod *params[1];
     uint8_t buffer[1024];
@@ -145,10 +147,11 @@ void play_audio(const char* musicfile, volume_data *volume, GCancellable *cancel
             PW_KEY_MEDIA_TYPE, "Audio",
             PW_KEY_MEDIA_CATEGORY, "Playback",
             PW_KEY_MEDIA_ROLE, "Music",
+            PW_KEY_TARGET_OBJECT, "VirtualMicSink",
             NULL),
         &stream_events,
         &data);
-    
+
     data.volume = volume;
     data.cancellable = cancellable;
 

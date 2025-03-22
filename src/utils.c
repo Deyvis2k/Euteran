@@ -6,6 +6,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <math.h>
+#include <ctype.h>
 #include "constants.h"
 
 #define ALLOWED_EXTENSION ".mp3"
@@ -16,7 +17,6 @@ const double* seconds_to_minute(double music_duration) {
     double seconds = fmod(music_duration, 60);
     
 
-    //appends to array
     double *result = (double*) malloc(2 * sizeof(double));
     if(result == NULL){
         fprintf(stderr, "Error allocating memory\n");
@@ -56,12 +56,22 @@ char* cast_double_to_string(double value) {
         double m = time_values[0];
         double s = time_values[1];
 
-        snprintf(buffer, 10, "%.0fm%.0fs", m, s);
+        if(s < 10){
+            snprintf(buffer, 10, "%.0fm0%.0fs", m, s);
+        }
+        else{
+            snprintf(buffer, 10, "%.0fm%.0fs", m, s);
+        }
         return buffer;
     }
 
     snprintf(buffer, 10, "%.2fs", value);
     return buffer;
+}
+
+double string_to_double(const char *str){
+    double value = atof(str);
+    return value;
 }
 
 
@@ -121,12 +131,8 @@ music_list_t list_files_musics(const char* dir) {
     closedir(dp);
 
     count = total;
-
     list.musics = musics;
     list.count_size = count;
-    
-    
-
 
     return list;
 }
@@ -142,4 +148,55 @@ GFile* get_file_from_path() {
     }
 
     return css_file;
+}
+
+
+char* remove_outside_quotes(char* str){
+    size_t len = strlen(str);
+    if(len > 1 && str[0] == '"' && str[len - 1] == '"'){
+        str[len - 1] = '\0';
+        return str + 1;
+    }
+    return str;
+}
+
+
+
+void remove_if_not_number(char* str){
+    char* read = str;
+    char* write = str;
+    while(*read){
+        if(isdigit((unsigned char)*read)){
+            *write++ = *read;
+        }
+        read++;
+    }
+    *write = '\0';
+}
+
+void trim(char* str) {
+    char* end;
+    while (isspace((unsigned char)*str)) str++;
+    if (*str == 0) return;
+    end = str + strlen(str) - 1;
+    while (end > str && isspace((unsigned char)*end)) end--;
+    end[1] = '\0';
+}
+
+char* get_within_quotes(const char* str) {
+    const char* start = strchr(str, '"');  
+    if (!start) return NULL;
+    start++;
+
+    const char* end = strchr(start, '"');  
+    if (!end) return NULL;
+
+    size_t length = end - start;
+    char* result = malloc(length + 1);
+    if (!result) return NULL;
+
+    strncpy(result, start, length);
+    result[length] = '\0';
+
+    return result;
 }

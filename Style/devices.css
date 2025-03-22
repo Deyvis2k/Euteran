@@ -1,0 +1,45 @@
+@import "colors.css";
+
+
+.main_grid_devices_class{
+    background-color: rgba(48,48,48,0.3);
+    border-radius: 4px;
+}
+
+.box_sinks_class{
+    background-color: var(--rosewater);
+    border-radius: 4px;
+    border: 0.8px ridge floralwhite;
+}
+
+.box_sources_class{
+    background-color: var(--rosewater);
+    border-radius: 4px;
+    border: 0.8px ridge floralwhite;
+}
+
+.list_box_sinks_class{
+    background-color: var(--rosewater);
+    border-radius: 4px;
+    border: 0.8px ridge floralwhite;
+    color: floralwhite;
+    font-family: "JetbrainsMono Nerd Font";
+    font-size: 14px;
+}
+
+.list_box_sources_class{
+    background-color: var(--rosewater);
+    border-radius: 4px;
+    border: 0.8px ridge floralwhite;
+    color: floralwhite;
+    font-family: "JetbrainsMono Nerd Font";
+    font-size: 14px;
+}
+
+.box_sinks_class row selected{
+    background-color: rgba(220,138,120,0.8);
+}
+
+.box_sources_class row selected{
+    background-color: rgba(220,138,120,0.8);
+}

@@ -12,11 +12,16 @@
 
 
 void on_file_opened(GtkFileDialog *dialog, GAsyncResult *res, gpointer user_data) {
+    printf("on_file_opened\n");
     GError *error = NULL;
     GFile *file = gtk_file_dialog_select_folder_finish(dialog, res, &error);
-    
-    g_assert(GTK_IS_WIDGET(user_data));
+
     GtkWidget *window = GTK_WIDGET(user_data);
+
+    if(!GTK_IS_WIDGET(window) || window == NULL) {
+        g_print("Erro: window nao eh um GtkWidget\n");
+        return;
+    }
 
     if (file) {
         gchar *filename = g_file_get_path(file);
@@ -60,14 +65,21 @@ void on_file_opened(GtkFileDialog *dialog, GAsyncResult *res, gpointer user_data
     g_object_unref(dialog);
 }
 
-
 void select_file(GtkWidget *button, gpointer user_data) {
-
+    printf("Abrindo dialog\n");
     GtkFileDialog *choose = gtk_file_dialog_new();
+    g_object_ref(choose);
     GtkWidget *parent = GTK_WIDGET(user_data);
-    g_assert(GTK_WIDGET(parent));
+    if(!GTK_IS_WIDGET(parent) || parent == NULL) {
+        g_print("Erro: parent nao eh um GtkWidget\n");
+        return;
+    }
 
-    gtk_file_dialog_select_folder(choose, 
+
+    gtk_window_present(GTK_WINDOW(parent));
+
+    gtk_file_dialog_select_folder(
+                         choose, 
                          GTK_WINDOW(parent), 
                          NULL, 
                          (GAsyncReadyCallback)on_file_opened, 
@@ -82,7 +94,6 @@ static gboolean on_key_press(GtkEventControllerKey *controller, guint keyval,
     {
     GtkWindow *window = GTK_WINDOW(user_data);
     
-
     if (keyval == GDK_KEY_Escape) {
         gtk_window_close(window);
         return TRUE;
@@ -93,6 +104,11 @@ static gboolean on_key_press(GtkEventControllerKey *controller, guint keyval,
 
 
 void create_new_window(GtkWidget *window_parent, gpointer user_data) {
+    if(!GTK_IS_WIDGET(window_parent) || window_parent == NULL) {
+        g_print("Erro: window_parent nao eh um GtkWidget\n");
+        return;
+    }
+
     GtkWidget *window = gtk_window_new();
     GtkEventController *controller = gtk_event_controller_key_new();
 
@@ -128,6 +144,7 @@ void create_new_window(GtkWidget *window_parent, gpointer user_data) {
     GTK_STYLE_PROVIDER(css_), GTK_STYLE_PROVIDER_PRIORITY_USER);
     gtk_window_set_title(GTK_WINDOW(window), "Background");
     gtk_window_set_default_size(GTK_WINDOW(window), 400, 400);
+    gtk_window_set_modal(GTK_WINDOW(window), TRUE);
     gtk_window_set_resizable(GTK_WINDOW(window), FALSE);
     gtk_widget_add_css_class(GTK_WIDGET(window), "select_file_window");
 
@@ -150,7 +167,16 @@ void create_new_window(GtkWidget *window_parent, gpointer user_data) {
     gtk_box_append(GTK_BOX(box_button_folder), button);
     gtk_widget_set_cursor_from_name(button, "hand2");
 
-    g_signal_connect(button, "clicked", G_CALLBACK(select_file), user_data);
+    GtkWidget* data = (GtkWidget*)user_data;
+    
+    if(!data || !GTK_IS_WIDGET(data)){
+        g_print(RED_COLOR "Erro: Dados inválidos em window\n" RESET_COLOR);
+        return;
+    }else{
+        g_print("window parent: %p\n", data);
+    }
+
+    g_signal_connect(button, "clicked", G_CALLBACK(select_file), data);
     
     
     gtk_widget_add_controller(GTK_WIDGET(window), controller);
