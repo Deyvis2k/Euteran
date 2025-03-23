@@ -49,7 +49,7 @@ void create_music_list(const gchar *path, WidgetsData *widgets_data, GtkWidget *
     gtk_list_box_remove_all(GTK_LIST_BOX(widgets_data->list_box));
 
     for (size_t i = 0; i < new_music_list.count_size; i++) {
-        if (new_music_list.musics[i].name == NULL || new_music_list.musics[i].duration <= 0) {
+        if (new_music_list.musics[i].name == NULL) {
             printf(RED_COLOR "[ERROR] Música inválida no índice %zu\n" RESET_COLOR, i);
             continue;
         }
@@ -72,11 +72,14 @@ void create_music_list(const gchar *path, WidgetsData *widgets_data, GtkWidget *
         gtk_widget_set_hexpand(GTK_WIDGET(label), TRUE); //
 
         const char *duration_str = cast_double_to_string(new_music_list.musics[i].duration);
+        printf("strlen: %zu\n", strlen(duration_str));
         GtkWidget *duration = gtk_label_new(duration_str ? duration_str : "0.0");
         gtk_label_set_xalign(GTK_LABEL(duration), 1.0); 
         gtk_widget_set_halign(GTK_WIDGET(duration), GTK_ALIGN_END); 
         gtk_widget_add_css_class(GTK_WIDGET(duration), "duration_class");
-        gtk_widget_set_margin_end(GTK_WIDGET(duration), 40);
+        
+        size_t offset = 100 - (strlen(duration_str) * 10);
+        gtk_widget_set_margin_end(GTK_WIDGET(duration), offset);
 
         gtk_grid_attach(GTK_GRID(grid), label, 0, 0, 2, 1); 
         gtk_grid_attach(GTK_GRID(grid), duration, 1, 0, 1, 1);

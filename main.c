@@ -126,21 +126,18 @@ void play_selected_music(GtkListBox *box, GtkListBoxRow *row, gpointer user_data
         return;
     }
 
-    // Pegando a GtkBox que contém os labels
     GtkWidget *box_child = gtk_list_box_row_get_child(row);
     if (!GTK_IS_GRID(box_child)) {
         printf("Erro: O filho da row não é um GtkGrid\n");
         return;
     }
 
-    // Pegando o primeiro filho do GtkBox (nome da música)
     GtkWidget *label = gtk_widget_get_first_child(box_child);
     if (!GTK_IS_LABEL(label)) {
         printf("Erro: O primeiro widget do GtkBox não é um GtkLabel\n");
         return;
     }
 
-    // Pegando o texto do label (nome da música)
     const char *filename = gtk_label_get_text(GTK_LABEL(label));
     if (!filename || strlen(filename) == 0) {
         printf("Erro: Nome da música inválido\n");
@@ -159,7 +156,6 @@ void play_selected_music(GtkListBox *box, GtkListBoxRow *row, gpointer user_data
         return;
     }
 
-    // Continua com sua lógica original...
     WidgetsData *widgets_data = (WidgetsData *)user_data;
     if (!widgets_data) {
         printf("Erro: Falha ao acessar WidgetsData\n");
@@ -261,6 +257,8 @@ void on_activate(GtkApplication *app, gpointer user_data) {
     gtk_widget_set_hexpand(GTK_WIDGET(window), FALSE);
     gtk_widget_set_vexpand(GTK_WIDGET(window), FALSE);
     gtk_widget_add_css_class(GTK_WIDGET(window), "main_window_class");
+        
+
 
     printf("window pointer in activate %p\n", window);
     
@@ -319,11 +317,16 @@ void on_activate(GtkApplication *app, gpointer user_data) {
     GtkWidget *popover = gtk_popover_new();
     gtk_popover_set_has_arrow(GTK_POPOVER(popover), FALSE);
     gtk_menu_button_set_popover(GTK_MENU_BUTTON(menu_button), popover);
+    gtk_widget_set_hexpand(popover, FALSE);
+    gtk_widget_set_vexpand(popover, FALSE);
     gtk_popover_set_default_widget(GTK_POPOVER(popover), menu_button);
     gtk_widget_add_css_class(popover, "popover");
     
     GtkWidget *popover_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
+    gtk_widget_set_halign(popover_box, GTK_ALIGN_CENTER);
     gtk_popover_set_child(GTK_POPOVER(popover), popover_box);
+    gtk_widget_set_hexpand(popover_box, FALSE);
+    gtk_widget_set_vexpand(popover_box, FALSE);
     gtk_widget_add_css_class(popover_box, "popover_box");
 
     GtkWidget *list_box = gtk_list_box_new();
@@ -345,12 +348,19 @@ void on_activate(GtkApplication *app, gpointer user_data) {
     for(int i = 0; i < length; i++){
         if(!popover_names[i]) break;
         GtkWidget *button = gtk_button_new_with_label(popover_names[i]);
+        gtk_widget_set_hexpand(button, FALSE);
+        gtk_widget_set_vexpand(button, FALSE);
+        gtk_widget_set_valign(button, GTK_ALIGN_CENTER);
+        gtk_widget_set_halign(button, GTK_ALIGN_CENTER);
+        gtk_widget_set_size_request(button, 70, 20);
 
         if(strcmp(popover_names[i], "Select File") == 0){
-            g_signal_connect(button, "clicked", G_CALLBACK(create_new_window), window);
+            gtk_popover_set_autohide(GTK_POPOVER(popover), TRUE);
+            g_signal_connect(button, "clicked", G_CALLBACK(select_file), window);
         }
 
         if(strcmp(popover_names[i], "Devices") == 0){
+            gtk_popover_set_autohide(GTK_POPOVER(popover), TRUE);
             g_signal_connect(button, "clicked", G_CALLBACK(construct_widget), window);
         }
        
@@ -385,6 +395,8 @@ void on_activate(GtkApplication *app, gpointer user_data) {
         
     if(g_file_test(SYM_AUDIO_DIR, G_FILE_TEST_EXISTS)){
         g_print(CYAN_COLOR "[INFO] Pasta ja existe\n" RESET_COLOR);
+        g_print(GREEN_COLOR "[COMMAND] Examinando folder..\n" RESET_COLOR);
+        system("sh src/sh/brokenlinks.sh");
     } else {
         mkdir(SYM_AUDIO_DIR, 0777);
         g_print(GREEN_COLOR "[COMMAND] Pasta criada\n" RESET_COLOR);

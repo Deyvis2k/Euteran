@@ -53,9 +53,17 @@ char* cast_double_to_string(double value) {
             fprintf(stderr, "Error allocating memory in time_values\n");
             return NULL;
         }
+        double h = 0;
         double m = time_values[0];
+        if(m >= 60){
+            h = m / 60;
+            m = fmod(m, 60);
+        }
         double s = time_values[1];
-
+        if(h > 0){
+            snprintf(buffer, 10, "%.0fh%.0fm%.0fs", h, m, s);
+            return buffer;
+        }
         if(s < 10){
             snprintf(buffer, 10, "%.0fm0%.0fs", m, s);
         }
@@ -93,9 +101,8 @@ music_list_t list_files_musics(const char* dir) {
         if (ep->d_type == DT_DIR || ep->d_name[0] == '.') {
             continue;
         }
-
-        if (strstr(ep->d_name, ALLOWED_EXTENSION)) {
-            // Aloca espaço para mais um elemento
+        //if is .mp3 or .ogg
+        if (strstr(ep->d_name, ALLOWED_EXTENSION) != NULL || strstr(ep->d_name, ".ogg") != NULL) {
             music_t* temp = realloc(musics, sizeof(music_t) * (total + 1));
             if (temp == NULL) {
                 if(musics){
@@ -122,7 +129,11 @@ music_list_t list_files_musics(const char* dir) {
             // Copia o caminho completo do arquivo
             char* full_path = malloc(strlen(SYM_AUDIO_DIR) + strlen(ep->d_name) + 2);
             sprintf(full_path, "%s%s", SYM_AUDIO_DIR, ep->d_name);
-            musics[total].duration = get_duration(full_path);
+
+            if(strstr(ep->d_name, ".ogg") != NULL){
+                musics[total].duration = get_duration_ogg(full_path);
+            }else
+                musics[total].duration = get_duration(full_path);
             free(full_path);
             total++;
         }

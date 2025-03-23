@@ -1,4 +1,5 @@
 #include "audio.h"
+#include "ogg/stb_vorbis.h"
 #include "pipewire/keys.h"
 #include "pipewire/stream.h"
 #include <mpg123.h>
@@ -13,50 +14,64 @@ static void apply_volume(int16_t *buffer, size_t size, float volume){
         buffer[i] = (int16_t)(buffer[i] * volume);
     }
 }
+
 static void on_process(void *userdata) {
     struct data *data = userdata;
     struct pw_buffer *b;
     struct spa_buffer *buf;
     int16_t *dst;
-    int err;
     size_t bytes_to_copy;
 
     g_mutex_lock(&paused_mutex);
-    if(*data->paused_ptr) {
+    if (*data->paused_ptr) {
         g_mutex_unlock(&paused_mutex);
         return;
     }
     g_mutex_unlock(&paused_mutex);
 
-    if(g_cancellable_is_cancelled(data->cancellable) && !data->loop_stopped) {
-        printf(YELLOW_COLOR"[INFO] Cancelando áudio, aguarde...\n"RESET_COLOR);
+    if (g_cancellable_is_cancelled(data->cancellable) && !data->loop_stopped) {
+        printf(YELLOW_COLOR "[INFO] Cancelando áudio, aguarde...\n" RESET_COLOR);
         data->loop_stopped = TRUE;
         pw_main_loop_quit(data->loop);
         return;
     }
 
-    if ((b = pw_stream_dequeue_buffer(data->stream)) == NULL) {
+    if (!(b = pw_stream_dequeue_buffer(data->stream))) {
         pw_log_warn("out of buffers: %m");
         return;
     }
 
     buf = b->buffer;
-    if ((dst = buf->datas[0].data) == NULL)
-        return;
-
-    err = mpg123_read(data->mpg, (unsigned char *)dst, buf->datas[0].maxsize, &bytes_to_copy);
-
-    if (err == MPG123_DONE || (g_cancellable_is_cancelled(data->cancellable) && !data->loop_stopped)) {
-        data->loop_stopped = TRUE;
-        pw_main_loop_quit(data->loop);
+    if (!(dst = buf->datas[0].data)) {
+        pw_stream_queue_buffer(data->stream, b);
         return;
     }
+
+    if (data->is_ogg) {
+        int samples = stb_vorbis_get_frame_short_interleaved(data->vorbis, data->channels, dst, 4096);
+        if (samples == 0) {
+            data->loop_stopped = TRUE;
+            pw_main_loop_quit(data->loop);
+            pw_stream_queue_buffer(data->stream, b);
+            return;
+        }
+        bytes_to_copy = samples * data->channels * sizeof(int16_t);
+    } else {
+        int err;
+        if (mpg123_read(data->mpg, (unsigned char *)dst, buf->datas[0].maxsize, &bytes_to_copy) == MPG123_DONE) {
+            data->loop_stopped = TRUE;
+            pw_main_loop_quit(data->loop);
+            pw_stream_queue_buffer(data->stream, b);
+            return;
+        }
+    }
+
     apply_volume(dst, bytes_to_copy / sizeof(int16_t), data->volume->volume);
 
     buf->datas[0].chunk->offset = 0;
-    buf->datas[0].chunk->stride = sizeof(int16_t) * data->channels;  // Usa canais reais
+    buf->datas[0].chunk->stride = sizeof(int16_t) * data->channels;
     buf->datas[0].chunk->size = bytes_to_copy;
-    
+
     pw_stream_queue_buffer(data->stream, b);
 }
 
@@ -99,47 +114,68 @@ double get_duration(const char *music_path) {
     return duration;
 }
 
-void play_audio(const char* musicfile, volume_data *volume, GCancellable *cancellable, gboolean *paused, GtkWidget *parent) {
+double get_duration_ogg(const char *music_path){
+    int error;
+    double duration = 0;
+    stb_vorbis *f = stb_vorbis_open_filename(music_path, &error, NULL);
+    if(!f){
+        printf("Error: %d\n", error);
+        return 0;
+    }
+    duration = stb_vorbis_stream_length_in_seconds(f);
+    stb_vorbis_close(f);
+    return duration;
+}
+
+void play_audio(const char *musicfile, volume_data *volume, GCancellable *cancellable, gboolean *paused, GtkWidget *parent) {
     struct data data = { 0 };
     const struct spa_pod *params[1];
     uint8_t buffer[1024];
     struct spa_pod_builder b = SPA_POD_BUILDER_INIT(buffer, sizeof(buffer));
     int err;
-    
+
     data.loop_stopped = FALSE;
-
     data.paused_ptr = paused;
-    
-    mpg123_init();
-    data.mpg = mpg123_new(NULL, &err);
-    if (!data.mpg) {
-        printf("Erro ao inicializar mpg123\n");
-        return;
-    }
+    data.volume = volume;
+    data.cancellable = cancellable;
 
-    if (mpg123_open(data.mpg, musicfile) != MPG123_OK) {
-        printf("Erro: %s\n", mpg123_strerror(data.mpg));
-        mpg123_delete(data.mpg);
-        mpg123_exit();
-        return;
-    }
+    const char *ext = strrchr(musicfile, '.');
+    data.is_ogg = ext && (strcmp(ext, ".ogg") == 0);
 
-    mpg123_getformat(data.mpg, &data.rate, &data.channels, &data.encoding);
-    
-    mpg123_format_none(data.mpg);
-    mpg123_format(data.mpg, data.rate, data.channels, data.encoding);
+    if (data.is_ogg) {
+        data.vorbis = stb_vorbis_open_filename(musicfile, &err, NULL);
+        if (!data.vorbis) {
+            printf("Erro ao abrir o arquivo OGG: %d\n", err);
+            return;
+        }
+        stb_vorbis_info info = stb_vorbis_get_info(data.vorbis);
+        data.rate = info.sample_rate;
+        data.channels = info.channels;
+        data.encoding = SPA_AUDIO_FORMAT_S16;
+        printf("OGG - Taxa de Amostragem: %lu Hz, Canais: %d\n", data.rate, data.channels);
+    } else {
+        mpg123_init();
+        data.mpg = mpg123_new(NULL, &err);
+        if (!data.mpg || mpg123_open(data.mpg, musicfile) != MPG123_OK) {
+            printf("Erro ao abrir o arquivo MP3: %s\n", data.mpg ? mpg123_strerror(data.mpg) : "mpg123_new falhou");
+            if (data.mpg) {
+                mpg123_delete(data.mpg);
+            }
+            mpg123_exit();
+            return;
+        }
+        mpg123_getformat(data.mpg, &data.rate, &data.channels, &data.encoding);
+        mpg123_format_none(data.mpg);
+        mpg123_format(data.mpg, data.rate, data.channels, SPA_AUDIO_FORMAT_S16);
+    }
 
     pw_init(NULL, NULL);
     data.loop = pw_main_loop_new(NULL);
-
-    if(!data.loop){
-        printf("Error while creating main loop\n");
-        mpg123_close(data.mpg);
-        mpg123_delete(data.mpg);
-        mpg123_exit();
-        return;
+    if (!data.loop) {
+        printf("Erro ao criar o main loop\n");
+        goto cleanup;
     }
-    
+
     data.stream = pw_stream_new_simple(
         pw_main_loop_get_loop(data.loop),
         "Soundpad",
@@ -147,60 +183,55 @@ void play_audio(const char* musicfile, volume_data *volume, GCancellable *cancel
             PW_KEY_MEDIA_TYPE, "Audio",
             PW_KEY_MEDIA_CATEGORY, "Playback",
             PW_KEY_MEDIA_ROLE, "Music",
-            PW_KEY_TARGET_OBJECT, "VirtualMicSink",
             NULL),
         &stream_events,
         &data);
 
-    data.volume = volume;
-    data.cancellable = cancellable;
-
-    if(!data.stream){
-        printf("Error while creating stream\n");
+    if (!data.stream) {
+        printf("Erro ao criar o stream\n");
         goto cleanup;
     }
+
     params[0] = spa_format_audio_raw_build(&b, SPA_PARAM_EnumFormat,
         &SPA_AUDIO_INFO_RAW_INIT(
             .format = SPA_AUDIO_FORMAT_S16,
-            .channels = data.channels,  
-            .rate = data.rate));        
+            .channels = data.channels,
+            .rate = data.rate));
 
-    pw_stream_connect(data.stream,
-        PW_DIRECTION_OUTPUT,
-        PW_ID_ANY,
-        PW_STREAM_FLAG_AUTOCONNECT |
-        PW_STREAM_FLAG_MAP_BUFFERS |
-        PW_STREAM_FLAG_RT_PROCESS,
-        params, 1);
-    
-    if(cancellable && g_cancellable_is_cancelled(cancellable)) {
-        printf("Canceled before playing audio\n");
+    if (pw_stream_connect(data.stream,
+                          PW_DIRECTION_OUTPUT,
+                          PW_ID_ANY,
+                          PW_STREAM_FLAG_AUTOCONNECT | PW_STREAM_FLAG_MAP_BUFFERS | PW_STREAM_FLAG_RT_PROCESS,
+                          params, 1) != 0) {
+        printf("Erro ao conectar o stream\n");
         goto cleanup;
     }
-    
+
+    if (cancellable && g_cancellable_is_cancelled(cancellable)) {
+        printf("Cancelado antes de tocar o áudio\n");
+        goto cleanup;
+    }
+
     pw_stream_set_active(data.stream, !(*paused));
-    printf(YELLOW_COLOR "[INFO] Playing audio...\n" RESET_COLOR);
+    printf(YELLOW_COLOR "[INFO] Tocando áudio...\n" RESET_COLOR);
     pw_main_loop_run(data.loop);
 
 cleanup:
-    if(data.stream){
+    if (data.stream) {
         pw_stream_disconnect(data.stream);
         pw_stream_destroy(data.stream);
-        data.stream = NULL;
     }
-    if(data.loop){
-        if(!data.loop_stopped){
+    if (data.loop) {
+        if (!data.loop_stopped) {
             pw_main_loop_quit(data.loop);
-            data.loop_stopped = TRUE;
         }
         pw_main_loop_destroy(data.loop);
-        data.loop = NULL;
     }
-    if(data.mpg){
+    if (data.is_ogg && data.vorbis) {
+        stb_vorbis_close(data.vorbis);
+    } else if (data.mpg) {
         mpg123_close(data.mpg);
         mpg123_delete(data.mpg);
-        data.mpg = NULL;
+        mpg123_exit();
     }
-    mpg123_exit();
 }
-

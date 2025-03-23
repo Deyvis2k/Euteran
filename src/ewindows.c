@@ -31,7 +31,7 @@ void on_file_opened(GtkFileDialog *dialog, GAsyncResult *res, gpointer user_data
             g_mkdir_with_parents(SYM_AUDIO_DIR, 0755);
         }
 
-        const gchar command[] = "ln -sf %s/*.mp3 %s";
+        const gchar command[] = "sh -c \"find %s -type f \\( -iname \\*.mp3 -o -iname \\*.ogg \\) -exec ln -sf {} %s \\;\"";
         gchar *command_string = g_strdup_printf(command, filename, SYM_AUDIO_DIR);
         g_print(GREEN_COLOR "[COMMAND]: %s\n" RESET_COLOR, command_string);
 

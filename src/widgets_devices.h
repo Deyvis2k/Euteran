@@ -9,5 +9,9 @@
 #include "audio_devices.h"
 
 void construct_widget(GtkWidget *button);
+gboolean on_key_press(GtkEventControllerKey *controller, guint keyval,
+    guint keycode,
+    GdkModifierType state,
+    gpointer user_data);
 
 #endif
