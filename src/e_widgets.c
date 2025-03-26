@@ -3,7 +3,6 @@
 #include "gtk/gtk.h"
 #include "utils.h"
 
-
 void clear_container_children(GtkWidget *container) {
     GtkWidget *child = gtk_widget_get_first_child(container);
     while (child != NULL) {
@@ -66,19 +65,19 @@ void create_music_list(const gchar *path, WidgetsData *widgets_data, GtkWidget *
         gtk_widget_set_size_request(GTK_WIDGET(grid), 650, 10);
 
         GtkWidget *label = gtk_label_new(new_music_list.musics[i].name);
+        gtk_label_set_ellipsize(GTK_LABEL(label), PANGO_ELLIPSIZE_END);
         gtk_label_set_xalign(GTK_LABEL(label), 0.0); 
         gtk_widget_set_halign(GTK_WIDGET(label), GTK_ALIGN_CENTER); 
         gtk_widget_set_margin_end(GTK_WIDGET(label), 100);
         gtk_widget_set_hexpand(GTK_WIDGET(label), TRUE); //
 
         const char *duration_str = cast_double_to_string(new_music_list.musics[i].duration);
-        printf("strlen: %zu\n", strlen(duration_str));
         GtkWidget *duration = gtk_label_new(duration_str ? duration_str : "0.0");
         gtk_label_set_xalign(GTK_LABEL(duration), 1.0); 
         gtk_widget_set_halign(GTK_WIDGET(duration), GTK_ALIGN_END); 
         gtk_widget_add_css_class(GTK_WIDGET(duration), "duration_class");
         
-        size_t offset = 100 - (strlen(duration_str) * 10);
+        int offset = (85 - (strlen(duration_str) * 10)) >= 0 ? (85 - (strlen(duration_str) * 10)) : 0;
         gtk_widget_set_margin_end(GTK_WIDGET(duration), offset);
 
         gtk_grid_attach(GTK_GRID(grid), label, 0, 0, 2, 1); 

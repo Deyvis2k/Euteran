@@ -189,7 +189,6 @@ void play_selected_music(GtkListBox *box, GtkListBoxRow *row, gpointer user_data
     data->volume->volume = last_volume;
     snprintf(data->filename, sizeof(data->filename), "%s%s", SYM_AUDIO_DIR, filename);
     data->music_duration = string_to_double(g_object_get_data(G_OBJECT(row), "music_duration"));
-    printf("Duracao da musica: %f\n", data->music_duration);
     create_slider(GTK_WIDGET(widgets_data->volume_slider), data->volume);
     gtk_range_set_value(GTK_RANGE(widgets_data->progress_bar), 0.0);
     widgets_data->music_duration = data->music_duration;
@@ -257,8 +256,6 @@ void on_activate(GtkApplication *app, gpointer user_data) {
     gtk_widget_set_hexpand(GTK_WIDGET(window), FALSE);
     gtk_widget_set_vexpand(GTK_WIDGET(window), FALSE);
     gtk_widget_add_css_class(GTK_WIDGET(window), "main_window_class");
-        
-
 
     printf("window pointer in activate %p\n", window);
     
@@ -342,26 +339,23 @@ void on_activate(GtkApplication *app, gpointer user_data) {
     gtk_grid_attach(GTK_GRID(main_grid), music_display_content, 0, 1, 1, 1);
     gtk_grid_attach(GTK_GRID(main_grid), grid, 0, 2, 1, 1);
 
-    const char* popover_names[] = {"Select File", "Bindings", "Devices", NULL};
+    const char* popover_names[] = {"Select Folder", "Bindings", "Devices", NULL};
     gboolean popover_visible = FALSE;
     size_t length = sizeof(popover_names) / sizeof(popover_names[0]);
     for(int i = 0; i < length; i++){
         if(!popover_names[i]) break;
         GtkWidget *button = gtk_button_new_with_label(popover_names[i]);
         gtk_widget_set_hexpand(button, FALSE);
-        gtk_widget_set_vexpand(button, FALSE);
-        gtk_widget_set_valign(button, GTK_ALIGN_CENTER);
-        gtk_widget_set_halign(button, GTK_ALIGN_CENTER);
         gtk_widget_set_size_request(button, 70, 20);
 
-        if(strcmp(popover_names[i], "Select File") == 0){
+        if(strcmp(popover_names[i], "Select Folder") == 0){
+            g_signal_connect(button, "clicked", G_CALLBACK(select_folder), window);
             gtk_popover_set_autohide(GTK_POPOVER(popover), TRUE);
-            g_signal_connect(button, "clicked", G_CALLBACK(select_file), window);
         }
 
         if(strcmp(popover_names[i], "Devices") == 0){
-            gtk_popover_set_autohide(GTK_POPOVER(popover), TRUE);
             g_signal_connect(button, "clicked", G_CALLBACK(construct_widget), window);
+            gtk_popover_set_autohide(GTK_POPOVER(popover), TRUE);
         }
        
         gtk_widget_add_css_class(button, "popover_button");

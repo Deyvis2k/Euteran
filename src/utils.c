@@ -116,7 +116,6 @@ music_list_t list_files_musics(const char* dir) {
             }
             musics = temp;
 
-            // Copia o nome do arquivo para evitar sobrescrita
             musics[total].name = strdup(ep->d_name);
             if (musics[total].name == NULL) {
                 for(size_t i = 0; i < total; i++){
@@ -126,7 +125,6 @@ music_list_t list_files_musics(const char* dir) {
                 closedir(dp);
                 return list;
             }
-            // Copia o caminho completo do arquivo
             char* full_path = malloc(strlen(SYM_AUDIO_DIR) + strlen(ep->d_name) + 2);
             sprintf(full_path, "%s%s", SYM_AUDIO_DIR, ep->d_name);
 

@@ -3,7 +3,8 @@
 @import "devices.css";
 
 .main_window_class{
-    background-color: rgba(48,48,48,0.3);
+    /* background-color: rgba(48,48,48,0.3); */
+    opacity: 0.8;
 }
 
 .selected_music_class{
@@ -12,7 +13,7 @@
 
 .popover_button{
     box-shadow: none;
-    background-color: var(--rosewater);
+    /* background-color: var(--rosewater); */
     color: floralwhite;
     font-size: 10px;
     padding: 0px;
@@ -24,25 +25,24 @@
 
 .duration_class{
     border-left: 0.3px ridge floralwhite;
-    padding-left: 30px;
+    padding-left: 15px;
 }
 
 .popover_button:hover{
     box-shadow: none;
-    background-color: var(--red);
     color: floralwhite;
+    transition-duration: 0.5s;
     font-family: "JetbrainsMono Nerd Font";
 }
 
 .popover contents{
     box-shadow: none;
     border: none;
-    background-color: rgba(48,48,48,0.2);
+    background-color: transparent;
 }
 .popover arrows{
     border: none;
     box-shadow: none;
-    background-color: rgba(48,48,48,0.2);
 }
 
 
@@ -90,22 +90,8 @@
 }
 
 .slider_main {
-    color: var(--red);
     border-radius: 3px;
     background-color: transparent;
-}
-
-.slider_main trough{
-    color: var(--red);
-}
-
-.slider_main trough highlight{
-    background-color: var(--rosewater);
-}
-
-.slider_main slider {
-    background-color: var(--overlay-1);
-    color: var(--red);
 }
 
 .tag_box {
@@ -119,13 +105,12 @@
 }
 
 .list_box row {
-    background-color: var(--rosewater);
     border-left: 0.3px ridge floralwhite;
     border-right: 0.3px ridge floralwhite;
 }
 
 .list_box row:selected{
-    background-color: rgba(220,138,120,0.8);
+    opacity: 1;
 }
 
 
