@@ -43,3 +43,11 @@ target_link_libraries(main
 
 target_compile_options(main PRIVATE ${PIPEWIRE_CFLAGS} ${XCB_CFLAGS} ${GTK_CFLAGS} ${MPG123_CFLAGS})
 
+add_custom_target(copy_style ALL
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    ${CMAKE_SOURCE_DIR}/Style
+    ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/Style
+)
+
+add_dependencies(main copy_style)
+
