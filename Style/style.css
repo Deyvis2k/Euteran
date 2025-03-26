@@ -53,7 +53,8 @@
 }
 
 .music_display_content_class{
-    border: 0.3px ridge floralwhite;
+    border-top: 0.3px ridge floralwhite;
+    border-bottom: 0.3px ridge floralwhite;
 }
 
 .menu_button{
@@ -95,7 +96,8 @@
 }
 
 .tag_box {
-    border: 0.3px ridge floralwhite;
+    border-top: 0.3px ridge floralwhite;
+    border-bottom: 0.3px ridge floralwhite;
 }
 
 .list_box{

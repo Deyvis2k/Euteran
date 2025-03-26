@@ -251,10 +251,9 @@ static void on_window_destroy(GtkWidget *widget, gpointer user_data) {
 void on_activate(GtkApplication *app, gpointer user_data) {
     GtkWidget *window = gtk_application_window_new(app);
     gtk_window_set_title(GTK_WINDOW(window), "Background");
-    gtk_window_set_default_size(GTK_WINDOW(window), 650, 200);
+    gtk_window_set_default_size(GTK_WINDOW(window), 650, 100);
     gtk_window_set_resizable(GTK_WINDOW(window), FALSE);
     gtk_widget_set_hexpand(GTK_WIDGET(window), FALSE);
-    gtk_widget_set_vexpand(GTK_WIDGET(window), FALSE);
     gtk_widget_add_css_class(GTK_WIDGET(window), "main_window_class");
 
     printf("window pointer in activate %p\n", window);
@@ -369,8 +368,6 @@ void on_activate(GtkApplication *app, gpointer user_data) {
 
     // tags 
     GtkWidget *tag_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 250);
-    gtk_widget_set_halign(tag_box, GTK_ALIGN_CENTER);
-    gtk_widget_set_valign(tag_box, GTK_ALIGN_CENTER);
     gtk_widget_set_size_request(tag_box, 650, 10);
     gtk_widget_set_hexpand(tag_box, FALSE);
     gtk_widget_set_vexpand(tag_box, FALSE);
