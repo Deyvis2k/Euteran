@@ -1,11 +1,6 @@
 @import "colors.css";
 
 
-.main_grid_devices_class{
-    background-color: rgba(48,48,48,0.3);
-    border-radius: 4px;
-}
-
 .box_sinks_class{
     border-radius: 4px;
     border: 0.8px ridge floralwhite;
@@ -18,7 +13,7 @@
 
 .list_box_sinks_class{
     border-radius: 4px;
-    border: 0.8px ridge floralwhite;
+    border: 0.4px ridge floralwhite;
     color: floralwhite;
     font-family: "JetbrainsMono Nerd Font";
     font-size: 12px;
@@ -27,14 +22,26 @@
 .container_real_devices_class{
     border-radius: 4px;
     border: 0.8px ridge floralwhite;
+    background-color: rebeccapurple;
 }
 
 .list_box_sources_class{
     border-radius: 4px;
-    border: 0.8px ridge floralwhite;
+    border: 0.4px ridge floralwhite;
     color: floralwhite;
     font-family: "JetbrainsMono Nerd Font";
     font-size: 12px;
 }
+.box_container_main_class{
+    opacity: 0.8;
+    border-radius: 4px;
+}
 
+.grid_devices_class{
+    background-color: lavender;
+}
+.new_window_devices_class{
+    min-width: 400px;
+    min-height: 400px;
+}
 

@@ -7,9 +7,9 @@
     opacity: 0.8;
 }
 
-.selected_music_class{
-    border: 0.3px ridge floralwhite;
-}
+/* .selected_music_class{ */
+/*     border: 0.3px ridge floralwhite; */
+/* } */
 
 .popover_button{
     box-shadow: none;
@@ -53,8 +53,7 @@
 }
 
 .music_display_content_class{
-    border-top: 0.3px ridge floralwhite;
-    border-bottom: 0.3px ridge floralwhite;
+    border: 0.3px ridge floralwhite;
 }
 
 .menu_button{
@@ -96,7 +95,6 @@
 }
 
 .tag_box {
-    border-top: 0.3px ridge floralwhite;
     border-bottom: 0.3px ridge floralwhite;
 }
 
@@ -106,16 +104,13 @@
     font-size: 16px;
 }
 
-.list_box row {
-    border-left: 0.3px ridge floralwhite;
-    border-right: 0.3px ridge floralwhite;
-}
-
 .list_box row:selected{
     opacity: 1;
 }
 
-
+.music_holder_grid{
+    border: 0.3px ridge floralwhite;
+}
 
 .music_button_class{
     background: transparent;

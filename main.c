@@ -1,3 +1,4 @@
+#include <bits/sockaddr.h>
 #include <mpg123.h>
 #include <pthread.h>
 #include <gtk/gtk.h>
@@ -55,6 +56,7 @@ static void on_task_completed(GObject *source_object, GAsyncResult *res, gpointe
     if (G_IS_TASK(task)) {
         g_object_unref(task); 
     }
+
     printf(RED_COLOR "[LOG] Task finalizada e recursos liberados.\n" RESET_COLOR);
 }
 
@@ -116,7 +118,6 @@ static gboolean on_value_changed_music(GtkRange *range, gpointer user_data) {
     }
 
     g_mutex_unlock(&paused_mutex);
-    
     return FALSE;
 }
 
@@ -231,8 +232,6 @@ void play_selected_music(GtkListBox *box, GtkListBoxRow *row, gpointer user_data
     if (old_task) g_object_unref(old_task);
 }
 
-
-
 static void on_window_destroy(GtkWidget *widget, gpointer user_data) {
     static GMutex mutex;
     g_mutex_lock(&mutex);
@@ -248,9 +247,32 @@ static void on_window_destroy(GtkWidget *widget, gpointer user_data) {
     }
 }
 
+gboolean is_session_a_wm(const char* session_name, const char* actual_session_name) {
+    return strcmp(session_name, actual_session_name) == 0;   
+} 
+
+
 void on_activate(GtkApplication *app, gpointer user_data) {
     GtkWidget *window = gtk_application_window_new(app);
-    gtk_window_set_title(GTK_WINDOW(window), "Background");
+    gchar *title;
+    #ifdef __linux__ 
+        #include <stdlib.h>
+        const char* sessions_names[] = {"i3", "hyprland","sway", NULL};
+        const char *session_name = getenv("DESKTOP_SESSION");
+        for (int i = 0; sessions_names[i]; i++) {
+            if(is_session_a_wm(sessions_names[i], session_name)) {
+                title = "Background";
+                break;
+            }
+        }
+        if (title == NULL) {
+            printf("Session name: %s\n", session_name);
+            title = "Soundpad";
+        }
+    #else 
+        title = "Soundpad";
+    #endif
+    gtk_window_set_title(GTK_WINDOW(window), title);
     gtk_window_set_default_size(GTK_WINDOW(window), 650, 100);
     gtk_window_set_resizable(GTK_WINDOW(window), FALSE);
     gtk_widget_set_hexpand(GTK_WIDGET(window), FALSE);
@@ -270,19 +292,18 @@ void on_activate(GtkApplication *app, gpointer user_data) {
         return;
     }
 
-    GtkWidget* music_display_content = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);
-    gtk_widget_set_size_request(music_display_content, 650, 10);
+    GtkWidget* music_display_content = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);
+    gtk_widget_set_size_request(music_display_content, 565, 10);
+    gtk_widget_set_halign(music_display_content, GTK_ALIGN_CENTER);
     GtkWidget *slider = gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL, 0, 1, 0.01);
-    gtk_widget_set_size_request(slider, 300, 5);
+    gtk_widget_set_size_request(slider, 250, 4);
     gtk_widget_add_css_class(music_display_content, "music_display_content_class");
     gtk_box_append(GTK_BOX(music_display_content), slider);
     GtkWidget *progress_bar = gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL, 0, 1, 0.01);
     gtk_widget_add_css_class(GTK_WIDGET(progress_bar), "progress_bar_class");
-    gtk_widget_set_size_request(progress_bar, 300, 6);
-    gtk_widget_set_valign(progress_bar, GTK_ALIGN_CENTER);
+    gtk_widget_set_size_request(progress_bar, 250, 4);
     gtk_box_append(GTK_BOX(music_display_content), progress_bar);
     GtkWidget *music_button = gtk_button_new_from_icon_name("media-playback-start");
-    gtk_widget_set_valign(music_button, GTK_ALIGN_CENTER);
     gtk_widget_add_css_class(GTK_WIDGET(music_button), "music_button_class");
     gtk_widget_set_size_request(music_button, 10, 5);
     gtk_box_append(GTK_BOX(music_display_content), music_button);
@@ -298,9 +319,9 @@ void on_activate(GtkApplication *app, gpointer user_data) {
     gtk_css_provider_load_from_file(provider, css_file);
     gtk_style_context_add_provider_for_display(gdk_display_get_default(), GTK_STYLE_PROVIDER(provider), GTK_STYLE_PROVIDER_PRIORITY_USER);
 
-    GtkWidget *grid = gtk_grid_new();
-    gtk_widget_set_halign(grid, GTK_ALIGN_CENTER);
-    gtk_widget_set_valign(grid, GTK_ALIGN_END);
+    GtkWidget *music_holder_grid = gtk_grid_new();
+    gtk_widget_set_halign(music_holder_grid, GTK_ALIGN_CENTER);
+    gtk_widget_set_valign(music_holder_grid, GTK_ALIGN_END);
     gtk_window_set_child(GTK_WINDOW(window), main_grid);
 
     GtkWidget *menu_button = gtk_menu_button_new();
@@ -327,7 +348,7 @@ void on_activate(GtkApplication *app, gpointer user_data) {
 
     GtkWidget *list_box = gtk_list_box_new();
     gtk_list_box_set_selection_mode(GTK_LIST_BOX(list_box), GTK_SELECTION_BROWSE);
-    gtk_grid_attach(GTK_GRID(grid), list_box, 0, 1, 1, 1);
+    gtk_grid_attach(GTK_GRID(music_holder_grid), list_box, 0, 1, 1, 1);
 
     widgets_data->list_box = list_box;
 
@@ -336,7 +357,7 @@ void on_activate(GtkApplication *app, gpointer user_data) {
     gtk_widget_add_css_class(slider, "slider_main");
     gtk_grid_attach(GTK_GRID(main_grid), menu_button, 0, 0, 1, 1);
     gtk_grid_attach(GTK_GRID(main_grid), music_display_content, 0, 1, 1, 1);
-    gtk_grid_attach(GTK_GRID(main_grid), grid, 0, 2, 1, 1);
+    gtk_grid_attach(GTK_GRID(main_grid), music_holder_grid, 0, 2, 1, 1);
 
     const char* popover_names[] = {"Select Folder", "Bindings", "Devices", NULL};
     gboolean popover_visible = FALSE;
@@ -363,7 +384,7 @@ void on_activate(GtkApplication *app, gpointer user_data) {
 
     g_object_set_data(G_OBJECT(window), "play_selected_music", (gpointer)play_selected_music);
     g_object_set_data(G_OBJECT(window), "widgets_data", widgets_data);
-    g_object_set_data(G_OBJECT(window), "grid_data", grid);
+    g_object_set_data(G_OBJECT(window), "grid_data", music_holder_grid);
 
 
     // tags 
@@ -379,9 +400,11 @@ void on_activate(GtkApplication *app, gpointer user_data) {
     gtk_widget_add_css_class(tag_box, "tag_box");
     gtk_widget_add_css_class(tag_label_name, "tag_label_name");
     gtk_widget_add_css_class(tag_label_duration, "tag_label_duration");
-    gtk_grid_attach(GTK_GRID(grid), tag_box, 0, 0, 2, 1);
+    gtk_grid_attach(GTK_GRID(music_holder_grid), tag_box, 0, 0, 2, 1);
     gtk_box_append(GTK_BOX(tag_box), tag_label_name);
     gtk_box_append(GTK_BOX(tag_box), tag_label_duration);
+    gtk_widget_add_css_class(music_holder_grid, "music_holder_grid");
+
 
         
     if(g_file_test(SYM_AUDIO_DIR, G_FILE_TEST_EXISTS)){
@@ -392,7 +415,7 @@ void on_activate(GtkApplication *app, gpointer user_data) {
         mkdir(SYM_AUDIO_DIR, 0777);
         g_print(GREEN_COLOR "[COMMAND] Pasta criada\n" RESET_COLOR);
     }
-    create_music_list(SYM_AUDIO_DIR, widgets_data, grid, play_selected_music);
+    create_music_list(SYM_AUDIO_DIR, widgets_data, music_holder_grid, play_selected_music);
 
     const gchar *home_dir = g_get_home_dir();
     g_object_set_data_full(G_OBJECT(window), "home_dir", (gpointer)home_dir, g_free);
@@ -419,4 +442,3 @@ int main(int argc, char *argv[]) {
     g_object_unref(app);
     return status;
 }
-

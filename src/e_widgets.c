@@ -89,9 +89,6 @@ void create_music_list(const gchar *path, WidgetsData *widgets_data, GtkWidget *
         g_object_set_data(G_OBJECT(row), "music_duration", cast_simple_double_to_string((new_music_list.musics[i].duration)));
     }
 
-
-
-
     if (new_music_list.musics != NULL) {
         for (size_t i = 0; i < new_music_list.count_size; i++) {
             free(new_music_list.musics[i].name);
