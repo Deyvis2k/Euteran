@@ -56,7 +56,6 @@ static void on_task_completed(GObject *source_object, GAsyncResult *res, gpointe
     if (G_IS_TASK(task)) {
         g_object_unref(task); 
     }
-
     printf(RED_COLOR "[LOG] Task finalizada e recursos liberados.\n" RESET_COLOR);
 }
 
@@ -72,6 +71,7 @@ static gboolean update_progress_bar(gpointer user_data) {
     if (!data || !GTK_IS_RANGE(data->progress_bar)) {
         return G_SOURCE_REMOVE; 
     }
+
 
     if (data->elapsed_time >= data->music_duration) {
         gtk_range_set_value(GTK_RANGE(data->progress_bar), 1.0);

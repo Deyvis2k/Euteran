@@ -10,6 +10,8 @@
 
 #include <gtk/gtk.h>
 #include "audio_devices.h"
+#include <adwaita.h>
+#include "gtk/gtk.h"
 
 void construct_widget(GtkWidget *button);
 void construct_virtual_audio_widget(GtkWidget *grid);

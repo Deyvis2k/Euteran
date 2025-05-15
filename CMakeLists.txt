@@ -10,6 +10,7 @@ find_package(PkgConfig REQUIRED)
 pkg_check_modules(PIPEWIRE REQUIRED libpipewire-0.3)
 pkg_check_modules(XCB REQUIRED xcb)
 pkg_check_modules(GTK REQUIRED gtk4)
+pkg_check_modules(GTK REQUIRED libadwaita-1)
 pkg_check_modules(MPG123 REQUIRED libmpg123)  
 
 include_directories(

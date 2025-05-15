@@ -1,0 +1,15 @@
+:root{
+    --rosewater: rgb(220,138,120);
+    --flamingo: rgba(221,120,120,0.7);
+    --pink: rgba(234,118,203,0.7);
+    --mauve: rgba(136,57,239);
+    --red: rgba(234,10,33,0.9);
+    --maroon: rgba(234,28,44,0.8);
+    --peach: rgba(234,128,33,0.8);
+    --overlay-0: rgba(115,121,148,0.5);
+    --overlay-1: rgba(124, 127, 147, 0.5);
+    --text-0: rgba(76, 79, 105, 0.7);
+    --subtext-0: rgba(108, 111, 133, 0.7);
+    --subtext-1: rgba(92, 95, 119, 0.7);
+    --surface-0: rgba(204, 208, 218, 0.8);
+}
