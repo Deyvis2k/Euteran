@@ -2,5 +2,6 @@ assets/
 temp/
 .cache/
 build/
+Build/
 compile_commands.json
 *.txt
