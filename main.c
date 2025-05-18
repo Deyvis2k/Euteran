@@ -128,10 +128,6 @@ void play_selected_music(GtkListBox *box, GtkListBoxRow *row, gpointer user_data
     }
 
     GtkWidget *box_child = gtk_list_box_row_get_child(row);
-    if (!GTK_IS_GRID(box_child)) {
-        printf("Erro: O filho da row não é um GtkGrid\n");
-        return;
-    }
 
     GtkWidget *label = gtk_widget_get_first_child(box_child);
     if (!GTK_IS_LABEL(label)) {
@@ -145,7 +141,8 @@ void play_selected_music(GtkListBox *box, GtkListBoxRow *row, gpointer user_data
         return;
     }
     
-    GtkWidget *music_label = gtk_widget_get_next_sibling(label);
+    GtkWidget *separator_ = gtk_widget_get_next_sibling(label);
+    GtkWidget *music_label = gtk_widget_get_next_sibling(separator_);
     if (!GTK_IS_LABEL(music_label)) {
         printf("Erro: O segundo widget do GtkBox não é um GtkLabel\n");
         return;
@@ -251,163 +248,150 @@ gboolean is_session_a_wm(const char* session_name, const char* actual_session_na
     return strcmp(session_name, actual_session_name) == 0;   
 } 
 
-
 void on_activate(GtkApplication *app, gpointer user_data) {
-    GtkWidget *window = gtk_application_window_new(app);
+    AdwApplicationWindow *window = ADW_APPLICATION_WINDOW(adw_application_window_new(app));
     gchar *title;
-    #ifdef __linux__ 
-        #include <stdlib.h>
-        const char* sessions_names[] = {"i3", "hyprland","sway", NULL};
-        const char *session_name = getenv("DESKTOP_SESSION");
-        for (int i = 0; sessions_names[i]; i++) {
-            if(is_session_a_wm(sessions_names[i], session_name)) {
-                title = "Background";
-                break;
-            }
+#ifdef __linux__
+    #include <stdlib.h>
+    const char* sessions_names[] = {"i3", "hyprland", "sway", NULL};
+    const char *session_name = getenv("DESKTOP_SESSION");
+    for (int i = 0; sessions_names[i]; i++) {
+        if (is_session_a_wm(sessions_names[i], session_name)) {
+            title = "Background";
+            break;
         }
-        if (title == NULL) {
-            printf("Session name: %s\n", session_name);
-            title = "Soundpad";
-        }
-    #else 
-        title = "Soundpad";
-    #endif
+    }
+    if (title == NULL) {
+        printf("Session name: %s\n", session_name);
+        title = "Euteran";
+    }
+#else
+    title = "Euteran";
+#endif
     gtk_window_set_title(GTK_WINDOW(window), title);
-    gtk_window_set_default_size(GTK_WINDOW(window), 650, 100);
-    gtk_window_set_resizable(GTK_WINDOW(window), FALSE);
-    gtk_widget_set_hexpand(GTK_WIDGET(window), FALSE);
+    gtk_window_set_default_size(GTK_WINDOW(window), 800, 600); 
     gtk_widget_add_css_class(GTK_WIDGET(window), "main_window_class");
 
     printf("window pointer in activate %p\n", window);
-    
-    GFile *css_file = get_file_from_path();
 
-    GtkWidget *main_grid = gtk_grid_new();
-    gtk_grid_set_row_spacing(GTK_GRID(main_grid), 5);
-    
+    GFile *css_file = get_file_from_path();
+    GtkCssProvider *provider = gtk_css_provider_new();
+    gtk_css_provider_load_from_file(provider, css_file);
+    gtk_style_context_add_provider_for_display(gdk_display_get_default(),
+                                              GTK_STYLE_PROVIDER(provider),
+                                              GTK_STYLE_PROVIDER_PRIORITY_USER);
+
+    GtkWidget *main_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+    adw_application_window_set_content(window, main_box);
+
+    AdwHeaderBar *header_bar = ADW_HEADER_BAR(adw_header_bar_new());
+    gtk_box_append(GTK_BOX(main_box), GTK_WIDGET(header_bar));
+
+    GtkWidget *menu_button = gtk_menu_button_new();
+    gtk_menu_button_set_label(GTK_MENU_BUTTON(menu_button), "Options");
+    gtk_widget_add_css_class(menu_button, "menu_button");
+    adw_header_bar_pack_start(header_bar, menu_button);
+
+    GtkWidget *popover = gtk_popover_new();
+    gtk_popover_set_has_arrow(GTK_POPOVER(popover), FALSE);
+    gtk_menu_button_set_popover(GTK_MENU_BUTTON(menu_button), popover);
+    gtk_widget_add_css_class(popover, "popover");
+
+    GtkWidget *popover_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
+    gtk_popover_set_child(GTK_POPOVER(popover), popover_box);
+    gtk_widget_add_css_class(popover_box, "popover_box");
+
+    const char* popover_names[] = {"Select Folder", "Bindings", "Devices", NULL};
+    for (int i = 0; popover_names[i]; i++) {
+        GtkWidget *button = gtk_button_new_with_label(popover_names[i]);
+        gtk_widget_set_hexpand(button, FALSE);
+        gtk_widget_add_css_class(button, "popover_button");
+        gtk_box_append(GTK_BOX(popover_box), button);
+
+        if (strcmp(popover_names[i], "Select Folder") == 0) {
+            g_signal_connect(button, "clicked", G_CALLBACK(select_folder), window);
+            gtk_popover_set_autohide(GTK_POPOVER(popover), TRUE);
+        } else if (strcmp(popover_names[i], "Devices") == 0) {
+            g_signal_connect(button, "clicked", G_CALLBACK(construct_widget), window);
+            gtk_popover_set_autohide(GTK_POPOVER(popover), TRUE);
+        }
+    }
 
     WidgetsData *widgets_data = g_new0(WidgetsData, 1);
     if (!widgets_data) {
         printf("Erro: falha ao alocar WidgetsData\n");
+        g_object_unref(provider);
+        g_object_unref(css_file);
         return;
     }
 
-    GtkWidget* music_display_content = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);
-    gtk_widget_set_size_request(music_display_content, 565, 10);
-    gtk_widget_set_halign(music_display_content, GTK_ALIGN_CENTER);
-    GtkWidget *slider = gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL, 0, 1, 0.01);
-    gtk_widget_set_size_request(slider, 250, 4);
+    GtkWidget *music_display_content = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);
+    gtk_widget_set_halign(music_display_content, GTK_ALIGN_BASELINE_FILL);
     gtk_widget_add_css_class(music_display_content, "music_display_content_class");
+
+    GtkWidget *slider = gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL, 0, 1, 0.01);
+    gtk_widget_add_css_class(slider, "slider_main");
+    gtk_widget_set_hexpand(slider, TRUE);
+    gtk_widget_set_halign(slider, GTK_ALIGN_FILL);
     gtk_box_append(GTK_BOX(music_display_content), slider);
+
     GtkWidget *progress_bar = gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL, 0, 1, 0.01);
-    gtk_widget_add_css_class(GTK_WIDGET(progress_bar), "progress_bar_class");
-    gtk_widget_set_size_request(progress_bar, 250, 4);
+    gtk_widget_add_css_class(progress_bar, "progress_bar_class");
+    gtk_widget_set_hexpand(progress_bar, TRUE);
     gtk_box_append(GTK_BOX(music_display_content), progress_bar);
+
     GtkWidget *music_button = gtk_button_new_from_icon_name("media-playback-start");
-    gtk_widget_add_css_class(GTK_WIDGET(music_button), "music_button_class");
-    gtk_widget_set_size_request(music_button, 10, 5);
-    gtk_box_append(GTK_BOX(music_display_content), music_button);
+    gtk_widget_add_css_class(music_button, "music_button_class");
     gtk_widget_set_cursor_from_name(music_button, "hand2");
+    gtk_box_append(GTK_BOX(music_display_content), music_button);
 
     widgets_data->music_display_content = music_display_content;
     widgets_data->volume_slider = slider;
     widgets_data->progress_bar = progress_bar;
     widgets_data->music_button = music_button;
-    widgets_data->window_parent = window;
+    widgets_data->window_parent = GTK_WIDGET(window);
 
-    GtkCssProvider *provider = gtk_css_provider_new();
-    gtk_css_provider_load_from_file(provider, css_file);
-    gtk_style_context_add_provider_for_display(gdk_display_get_default(), GTK_STYLE_PROVIDER(provider), GTK_STYLE_PROVIDER_PRIORITY_USER);
+    AdwClamp *clamp = ADW_CLAMP(adw_clamp_new());
+    adw_clamp_set_child(clamp, music_display_content);
+    gtk_box_append(GTK_BOX(main_box), GTK_WIDGET(clamp));
 
-    GtkWidget *music_holder_grid = gtk_grid_new();
-    gtk_widget_set_halign(music_holder_grid, GTK_ALIGN_CENTER);
-    gtk_widget_set_valign(music_holder_grid, GTK_ALIGN_END);
-    gtk_window_set_child(GTK_WINDOW(window), main_grid);
+    GtkWidget *music_holder_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
+    gtk_widget_add_css_class(music_holder_box, "music_holder_box");
 
-    GtkWidget *menu_button = gtk_menu_button_new();
-    gtk_widget_set_valign(menu_button, GTK_ALIGN_START);
-    gtk_widget_set_halign(menu_button, GTK_ALIGN_START);
-    gtk_widget_set_size_request(menu_button, 50, 10);
-    gtk_menu_button_set_label(GTK_MENU_BUTTON(menu_button), "Options");
-    gtk_widget_add_css_class(menu_button, "menu_button");
-
-    GtkWidget *popover = gtk_popover_new();
-    gtk_popover_set_has_arrow(GTK_POPOVER(popover), FALSE);
-    gtk_menu_button_set_popover(GTK_MENU_BUTTON(menu_button), popover);
-    gtk_widget_set_hexpand(popover, FALSE);
-    gtk_widget_set_vexpand(popover, FALSE);
-    gtk_popover_set_default_widget(GTK_POPOVER(popover), menu_button);
-    gtk_widget_add_css_class(popover, "popover");
-    
-    GtkWidget *popover_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
-    gtk_widget_set_halign(popover_box, GTK_ALIGN_CENTER);
-    gtk_popover_set_child(GTK_POPOVER(popover), popover_box);
-    gtk_widget_set_hexpand(popover_box, FALSE);
-    gtk_widget_set_vexpand(popover_box, FALSE);
-    gtk_widget_add_css_class(popover_box, "popover_box");
+    GtkWidget *tag_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);
+    gtk_widget_add_css_class(tag_box, "tag_box");
+    GtkWidget *tag_label_name = gtk_label_new("Music Name");
+    gtk_widget_add_css_class(tag_label_name, "tag_label_name");
+    gtk_widget_set_hexpand(tag_label_name, TRUE);
+    gtk_box_append(GTK_BOX(tag_box), tag_label_name);
+    GtkWidget *tag_label_duration = gtk_label_new("Duration");
+    gtk_widget_add_css_class(tag_label_duration, "tag_label_duration");
+    gtk_box_append(GTK_BOX(tag_box), tag_label_duration);
+    gtk_box_append(GTK_BOX(music_holder_box), tag_box);
 
     GtkWidget *list_box = gtk_list_box_new();
     gtk_list_box_set_selection_mode(GTK_LIST_BOX(list_box), GTK_SELECTION_BROWSE);
-    gtk_grid_attach(GTK_GRID(music_holder_grid), list_box, 0, 1, 1, 1);
-
+    gtk_widget_add_css_class(list_box, "list_box");
     widgets_data->list_box = list_box;
+    gtk_box_append(GTK_BOX(music_holder_box), list_box);
 
-    gtk_widget_add_css_class(widgets_data->list_box, "list_box");
+    AdwPreferencesGroup *prefs_group = ADW_PREFERENCES_GROUP(adw_preferences_group_new());
+    adw_preferences_group_set_title(prefs_group, "Music Library");
+    adw_preferences_group_add(prefs_group, music_holder_box);
+    gtk_box_append(GTK_BOX(main_box), GTK_WIDGET(prefs_group));
 
-    gtk_widget_add_css_class(slider, "slider_main");
-    gtk_grid_attach(GTK_GRID(main_grid), menu_button, 0, 0, 1, 1);
-    gtk_grid_attach(GTK_GRID(main_grid), music_display_content, 0, 1, 1, 1);
-    gtk_grid_attach(GTK_GRID(main_grid), music_holder_grid, 0, 2, 1, 1);
+    // AdwBreakpoint *breakpoint = adw_breakpoint_new(
+    //     adw_breakpoint_condition_parse("max-width: 600px")
+    // );
+    // adw_breakpoint_add_setter(breakpoint, G_OBJECT(clamp), "maximum-size", (GValue *)g_variant_new_int32(400));
+    // adw_application_window_add_breakpoint(window, breakpoint);
 
-    const char* popover_names[] = {"Select Folder", "Bindings", "Devices", NULL};
-    gboolean popover_visible = FALSE;
-    size_t length = sizeof(popover_names) / sizeof(popover_names[0]);
-    for(int i = 0; i < length; i++){
-        if(!popover_names[i]) break;
-        GtkWidget *button = gtk_button_new_with_label(popover_names[i]);
-        gtk_widget_set_hexpand(button, FALSE);
-        gtk_widget_set_size_request(button, 70, 20);
-
-        if(strcmp(popover_names[i], "Select Folder") == 0){
-            g_signal_connect(button, "clicked", G_CALLBACK(select_folder), window);
-            gtk_popover_set_autohide(GTK_POPOVER(popover), TRUE);
-        }
-
-        if(strcmp(popover_names[i], "Devices") == 0){
-            g_signal_connect(button, "clicked", G_CALLBACK(construct_widget), window);
-            gtk_popover_set_autohide(GTK_POPOVER(popover), TRUE);
-        }
-       
-        gtk_widget_add_css_class(button, "popover_button");
-        gtk_box_append(GTK_BOX(popover_box), button);
-    }
-
+    // Store data
     g_object_set_data(G_OBJECT(window), "play_selected_music", (gpointer)play_selected_music);
     g_object_set_data(G_OBJECT(window), "widgets_data", widgets_data);
-    g_object_set_data(G_OBJECT(window), "grid_data", music_holder_grid);
+    g_object_set_data(G_OBJECT(window), "music_holder", music_holder_box);
 
-
-    // tags 
-    GtkWidget *tag_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 250);
-    gtk_widget_set_size_request(tag_box, 650, 10);
-    gtk_widget_set_hexpand(tag_box, FALSE);
-    gtk_widget_set_vexpand(tag_box, FALSE);
-    GtkWidget *tag_label_name = gtk_label_new("Music Name");
-    GtkWidget *tag_label_duration = gtk_label_new("Duration");
-    gtk_widget_set_margin_start(tag_label_name, 240);
-    gtk_widget_set_halign(tag_label_name, GTK_ALIGN_END);
-    gtk_widget_set_halign(tag_label_duration, GTK_ALIGN_START);
-    gtk_widget_add_css_class(tag_box, "tag_box");
-    gtk_widget_add_css_class(tag_label_name, "tag_label_name");
-    gtk_widget_add_css_class(tag_label_duration, "tag_label_duration");
-    gtk_grid_attach(GTK_GRID(music_holder_grid), tag_box, 0, 0, 2, 1);
-    gtk_box_append(GTK_BOX(tag_box), tag_label_name);
-    gtk_box_append(GTK_BOX(tag_box), tag_label_duration);
-    gtk_widget_add_css_class(music_holder_grid, "music_holder_grid");
-
-
-        
-    if(g_file_test(SYM_AUDIO_DIR, G_FILE_TEST_EXISTS)){
+    if (g_file_test(SYM_AUDIO_DIR, G_FILE_TEST_EXISTS)) {
         g_print(CYAN_COLOR "[INFO] Pasta ja existe\n" RESET_COLOR);
         g_print(GREEN_COLOR "[COMMAND] Examinando folder..\n" RESET_COLOR);
         system("sh src/sh/brokenlinks.sh");
@@ -415,20 +399,17 @@ void on_activate(GtkApplication *app, gpointer user_data) {
         mkdir(SYM_AUDIO_DIR, 0777);
         g_print(GREEN_COLOR "[COMMAND] Pasta criada\n" RESET_COLOR);
     }
-    create_music_list(SYM_AUDIO_DIR, widgets_data, music_holder_grid, play_selected_music);
+    create_music_list(SYM_AUDIO_DIR, widgets_data, music_holder_box, play_selected_music);
 
-    const gchar *home_dir = g_get_home_dir();
-    g_object_set_data_full(G_OBJECT(window), "home_dir", (gpointer)home_dir, g_free);
-    g_signal_connect(GTK_WIDGET(widgets_data->music_button), "clicked", G_CALLBACK(pause_audio), NULL);
-    // g_signal_connect(GTK_WIDGET(widgets_data->progress_bar), "value-changed", G_CALLBACK(on_value_changed_music), widgets_data);
+    g_signal_connect(widgets_data->music_button, "clicked", G_CALLBACK(pause_audio), NULL);
+    g_signal_connect(window, "destroy", G_CALLBACK(on_window_destroy), widgets_data);
 
     g_object_unref(provider);
     g_object_unref(css_file);
-    g_signal_connect(window, "destroy", G_CALLBACK(on_window_destroy), widgets_data);
-    
-    
-    gtk_widget_set_visible(window, TRUE);
+
+    gtk_widget_set_visible(GTK_WIDGET(window), TRUE);
 }
+
 
 int main(int argc, char *argv[]) {
     GtkApplication *app = gtk_application_new("org.gtk.example", G_APPLICATION_DEFAULT_FLAGS);

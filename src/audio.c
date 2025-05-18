@@ -178,7 +178,7 @@ void play_audio(const char *musicfile, volume_data *volume, GCancellable *cancel
 
     data.stream = pw_stream_new_simple(
         pw_main_loop_get_loop(data.loop),
-        "Soundpad",
+        "Euteran",
         pw_properties_new(
             PW_KEY_MEDIA_TYPE, "Audio",
             PW_KEY_MEDIA_CATEGORY, "Playback",

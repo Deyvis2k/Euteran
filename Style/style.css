@@ -104,6 +104,10 @@
     font-size: 16px;
 }
 
+.separator_class{
+    border: 0.3pt ridge floralwhite;
+}
+
 .list_box row:selected{
     opacity: 1;
 }
