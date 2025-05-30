@@ -37,14 +37,14 @@ void on_folder_open(GtkFileDialog *dialog, GAsyncResult *res, gpointer user_data
         g_free(command_string);
 
         WidgetsData *widgets_data = g_object_get_data(G_OBJECT(window), "widgets_data");
-        GtkWidget *grid = g_object_get_data(G_OBJECT(window), "grid_data");
+        GtkWidget *music_holder = g_object_get_data(G_OBJECT(window), "music_holder");
         PlayMusicFunc play_selected_music = g_object_get_data(G_OBJECT(window), "play_selected_music");
 
-        if (!widgets_data || !grid || !play_selected_music) {
+        if (!widgets_data || !music_holder || !play_selected_music) {
             g_print(RED_COLOR "Erro: Dados inválidos em window\n" RESET_COLOR);
         } else {
             g_print("atualizando lista\n");
-            create_music_list(SYM_AUDIO_DIR, widgets_data, grid, play_selected_music); 
+            create_music_list(SYM_AUDIO_DIR, widgets_data, music_holder, play_selected_music); 
             g_print("lista atualizada\n");
         }
 

@@ -229,6 +229,53 @@ void play_selected_music(GtkListBox *box, GtkListBoxRow *row, gpointer user_data
     if (old_task) g_object_unref(old_task);
 }
 
+static gboolean on_drop(
+    GtkDropTarget *target,
+    const GValue *value,
+    double x,
+    double y,
+    gpointer user_data
+) {
+    g_print("entered on_drop\n");
+
+    if (G_VALUE_HOLDS(value, G_TYPE_STRING)) {
+        const gchar *uri = g_value_get_string(value);
+        g_print("URI arrastada: %s\n", uri);
+
+        GFile *file = g_file_new_for_uri(uri);
+        gchar *path = g_file_get_path(file);
+
+        const char* ext = strrchr(uri, '.') + 1;
+
+        if(strcmp(ext, "mp3") != 0 || strcmp(ext, "ogg") != 0) {
+            g_print("Extensão inválida\n");
+            return FALSE;
+        }
+
+        if (path) {
+            g_print("Caminho do arquivo: %s\n", path);
+            g_free(path);
+        }
+        g_object_unref(file);
+        return TRUE;
+    } else if (G_VALUE_HOLDS(value, GDK_TYPE_FILE_LIST)) {
+        GdkFileList *file_list = g_value_get_boxed(value);
+        GSList *files = gdk_file_list_get_files(file_list);
+        for (GSList *iter = files; iter; iter = iter->next) {
+            GFile *file = iter->data;
+            gchar *path = g_file_get_path(file);
+            if (path) {
+                g_print("Arquivo arrastado: %s\n", path);
+                g_free(path);
+            }
+        }
+        return TRUE;
+    } else {
+        g_print("Tipo de dado não suportado\n");
+        return FALSE;
+    }
+}
+
 static void on_window_destroy(GtkWidget *widget, gpointer user_data) {
     static GMutex mutex;
     g_mutex_lock(&mutex);
@@ -269,7 +316,7 @@ void on_activate(GtkApplication *app, gpointer user_data) {
     title = "Euteran";
 #endif
     gtk_window_set_title(GTK_WINDOW(window), title);
-    gtk_window_set_default_size(GTK_WINDOW(window), 800, 600); 
+    gtk_window_set_default_size(GTK_WINDOW(window), 600, 400); 
     gtk_widget_add_css_class(GTK_WIDGET(window), "main_window_class");
 
     printf("window pointer in activate %p\n", window);
@@ -289,23 +336,23 @@ void on_activate(GtkApplication *app, gpointer user_data) {
 
     GtkWidget *menu_button = gtk_menu_button_new();
     gtk_menu_button_set_label(GTK_MENU_BUTTON(menu_button), "Options");
-    gtk_widget_add_css_class(menu_button, "menu_button");
+    // gtk_widget_add_css_class(menu_button, "menu_button");
     adw_header_bar_pack_start(header_bar, menu_button);
 
     GtkWidget *popover = gtk_popover_new();
     gtk_popover_set_has_arrow(GTK_POPOVER(popover), FALSE);
     gtk_menu_button_set_popover(GTK_MENU_BUTTON(menu_button), popover);
-    gtk_widget_add_css_class(popover, "popover");
+    // gtk_widget_add_css_class(popover, "popover");
 
     GtkWidget *popover_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
     gtk_popover_set_child(GTK_POPOVER(popover), popover_box);
-    gtk_widget_add_css_class(popover_box, "popover_box");
+    // gtk_widget_add_css_class(popover_box, "popover_box");
 
     const char* popover_names[] = {"Select Folder", "Bindings", "Devices", NULL};
     for (int i = 0; popover_names[i]; i++) {
         GtkWidget *button = gtk_button_new_with_label(popover_names[i]);
         gtk_widget_set_hexpand(button, FALSE);
-        gtk_widget_add_css_class(button, "popover_button");
+        // gtk_widget_add_css_class(button, "popover_button");
         gtk_box_append(GTK_BOX(popover_box), button);
 
         if (strcmp(popover_names[i], "Select Folder") == 0) {
@@ -355,9 +402,17 @@ void on_activate(GtkApplication *app, gpointer user_data) {
     adw_clamp_set_child(clamp, music_display_content);
     gtk_box_append(GTK_BOX(main_box), GTK_WIDGET(clamp));
 
-    GtkWidget *music_holder_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
-    gtk_widget_add_css_class(music_holder_box, "music_holder_box");
+    GtkWidget *music_holder_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+    gtk_widget_set_hexpand(music_holder_box, TRUE);
+    gtk_widget_set_vexpand(music_holder_box, TRUE);
 
+    GtkDropTarget *target = gtk_drop_target_new(G_TYPE_STRING, GDK_ACTION_COPY | GDK_ACTION_MOVE);
+
+
+    g_signal_connect(target, "drop", G_CALLBACK(on_drop), music_holder_box);
+    gtk_widget_add_controller(GTK_WIDGET(music_holder_box), GTK_EVENT_CONTROLLER(target));
+
+   
     GtkWidget *tag_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);
     gtk_widget_add_css_class(tag_box, "tag_box");
     GtkWidget *tag_label_name = gtk_label_new("Music Name");
@@ -365,6 +420,7 @@ void on_activate(GtkApplication *app, gpointer user_data) {
     gtk_widget_set_hexpand(tag_label_name, TRUE);
     gtk_box_append(GTK_BOX(tag_box), tag_label_name);
     GtkWidget *tag_label_duration = gtk_label_new("Duration");
+    gtk_widget_set_margin_end(tag_label_duration, 7);
     gtk_widget_add_css_class(tag_label_duration, "tag_label_duration");
     gtk_box_append(GTK_BOX(tag_box), tag_label_duration);
     gtk_box_append(GTK_BOX(music_holder_box), tag_box);
@@ -400,6 +456,10 @@ void on_activate(GtkApplication *app, gpointer user_data) {
         g_print(GREEN_COLOR "[COMMAND] Pasta criada\n" RESET_COLOR);
     }
     create_music_list(SYM_AUDIO_DIR, widgets_data, music_holder_box, play_selected_music);
+
+    GtkWidget *separator_style = gtk_separator_new(GTK_ORIENTATION_HORIZONTAL);
+    gtk_widget_add_css_class(separator_style, "separator_style");
+    gtk_box_append(GTK_BOX(music_holder_box), separator_style);
 
     g_signal_connect(widgets_data->music_button, "clicked", G_CALLBACK(pause_audio), NULL);
     g_signal_connect(window, "destroy", G_CALLBACK(on_window_destroy), widgets_data);

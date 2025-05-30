@@ -12,14 +12,10 @@
 /* } */
 
 .popover_button{
-    box-shadow: none;
+    /* box-shadow: none; */
     /* background-color: var(--rosewater); */
     color: floralwhite;
     font-size: 10px;
-    padding: 0px;
-    margin: 0px;
-    min-width: 0px;
-    min-height: 0px;
     font-family: "JetbrainsMono Nerd Font";
 }
 
@@ -30,34 +26,52 @@
 
 .popover_button:hover{
     box-shadow: none;
-    color: floralwhite;
     transition-duration: 0.5s;
+    background-color: grey;
     font-family: "JetbrainsMono Nerd Font";
 }
 
 .popover contents{
     box-shadow: none;
-    border: none;
-    background-color: transparent;
+    /* border: none; */
+    /* background-color: transparent; */
 }
 .popover arrows{
     border: none;
     box-shadow: none;
 }
 
+.music_row{
+    background-color: transparent;
+    border-left: 0.3px ridge floralwhite;
+    border-right: 0.3px ridge floralwhite;
+    box-shadow: none;
+    /* opacity: 0.8; */
+    font-family: "JetbrainsMono Nerd Font";
+}
+
+.separator_style{
+    border: 0.075mm solid white;
+    opacity: 1;
+}
+
 
 .popover_box{
     box-shadow: none;
     border: none;
-    background-color: transparent;
+    /* background-color: transparent; */
 }
 
 .music_display_content_class{
     border: 0.3px ridge floralwhite;
 }
 
+/* music_name_label{ */
+    /* background-color: transparent; */
+/* } */
+
 .menu_button{
-    padding: 5px;
+    margin: 5px;
     font-size: 10px;
     text-shadow: none;
     background-color: transparent;
@@ -67,6 +81,7 @@
 
 .menu_button button.toggle:hover{
     font-size: 10px;
+    margin: 5px;
     border: 0.5px solid var(--rosewater);
     background-color: transparent;
     outline-color: transparent;
@@ -75,6 +90,7 @@
 
 .menu_button button.toggle{
     font-size: 10px;
+    margin: 5px;
     border: 0.5px solid var(--overlay-0);
     background-color: transparent;
     outline-color: transparent;
@@ -82,12 +98,23 @@
 }
 
 .menu_button:hover{
-    padding: 5px;
+    margin: 5px;
     font-size: 10px;
     outline-color: transparent;
     box-shadow: none;
     text-shadow: none;
 }
+
+
+.menu_button button.toggle content{
+    font-size: 10px;
+    margin: 5px;
+    border: 0.5px solid var(--overlay-0);
+    background-color: transparent;
+    outline-color: transparent;
+    box-shadow: none;
+}
+
 
 .slider_main {
     border-radius: 3px;

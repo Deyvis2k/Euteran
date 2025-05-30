@@ -56,7 +56,7 @@ void create_music_list(const gchar *path, WidgetsData *widgets_data, GtkWidget *
             continue;
         }
 
-        GtkWidget *row_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);
+        GtkWidget *row_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);
         gtk_widget_set_hexpand(row_box, TRUE);
         gtk_widget_add_css_class(row_box, "music_row");
 
@@ -79,6 +79,7 @@ void create_music_list(const gchar *path, WidgetsData *widgets_data, GtkWidget *
         int offset = (85 - (strlen(duration_str) * 10)) >= 0 ? (85 - (strlen(duration_str) * 10)) : 0;
         offset = offset - 20;
         gtk_label_set_xalign(GTK_LABEL(duration), 1.0);
+        gtk_widget_add_css_class(duration, "music_name_label");
         gtk_widget_set_margin_end(duration, offset);
         gtk_box_append(GTK_BOX(row_box), duration);
 
