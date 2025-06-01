@@ -15,6 +15,7 @@
 #include "src/utils.h"
 #include "src/constants.h"
 #include "src/widgets_devices.h"
+#include "locale.h"
 
 typedef struct {
     char filename[512];
@@ -236,39 +237,72 @@ static gboolean on_drop(
     double y,
     gpointer user_data
 ) {
-    g_print("entered on_drop\n");
-
-    if (G_VALUE_HOLDS(value, G_TYPE_STRING)) {
-        const gchar *uri = g_value_get_string(value);
-        g_print("URI arrastada: %s\n", uri);
-
-        GFile *file = g_file_new_for_uri(uri);
-        gchar *path = g_file_get_path(file);
-
-        const char* ext = strrchr(uri, '.') + 1;
-
-        if(strcmp(ext, "mp3") != 0 || strcmp(ext, "ogg") != 0) {
-            g_print("Extensão inválida\n");
+    g_print("valor recebido (gvalue): %s\n", G_VALUE_TYPE_NAME(value));
+    
+    if (G_VALUE_HOLDS(value, G_TYPE_FILE)) {
+        GFile *file = g_value_get_object(value); 
+        if (!file) {
+            g_print("Erro: GFile inválido\n");
             return FALSE;
         }
 
-        if (path) {
+        gchar *uri = g_file_get_uri(file);
+        gchar *path = g_file_get_path(file);
+        if (!path) {
+            g_print("Erro ao obter caminho do arquivo: %s\n", uri);
+            g_free(uri);
+            return FALSE;
+        }
+
+        g_strchomp(uri);
+        g_strchomp(path);
+        g_print("URI limpo: %s\n", uri);
+        g_print("Caminho limpo: %s\n", path);
+
+        gboolean result = add_music_to_list(user_data, path, uri, file, play_selected_music);
+        
+        g_free(uri);
+        g_free(path);
+        return result;
+    }
+    else if(G_VALUE_HOLDS(value, G_TYPE_STRING)) {
+        const gchar *uri = g_value_get_string(value);
+        GFile *file = g_file_new_for_path(uri);
+        gchar *path = g_file_get_path(file);
+        if (!path) {
             g_print("Caminho do arquivo: %s\n", path);
             g_free(path);
+            g_object_unref(file);
+            return FALSE;
         }
+        add_music_to_list(user_data, path, uri, file, play_selected_music);
+        g_free(path);
         g_object_unref(file);
         return TRUE;
-    } else if (G_VALUE_HOLDS(value, GDK_TYPE_FILE_LIST)) {
+    }
+
+    else if (G_VALUE_HOLDS(value, G_TYPE_ARRAY)) {
+        g_print(GREEN_COLOR "[INFO] Arquivos arrastados\n" RESET_COLOR);
         GdkFileList *file_list = g_value_get_boxed(value);
         GSList *files = gdk_file_list_get_files(file_list);
         for (GSList *iter = files; iter; iter = iter->next) {
+            const gchar *uri = g_file_get_uri(iter->data);
             GFile *file = iter->data;
             gchar *path = g_file_get_path(file);
-            if (path) {
-                g_print("Arquivo arrastado: %s\n", path);
+            if (!path) {
+                g_print("Caminho do arquivo: %s\n", path);
                 g_free(path);
+                g_object_unref(file);
+                return FALSE;
             }
+
+            add_music_to_list(user_data, path, uri, file, play_selected_music);
+            g_object_unref(file);
+            g_free(path);
         }
+
+        g_slist_free(files);
+        g_object_unref(file_list);
         return TRUE;
     } else {
         g_print("Tipo de dado não suportado\n");
@@ -309,7 +343,6 @@ void on_activate(GtkApplication *app, gpointer user_data) {
         }
     }
     if (title == NULL) {
-        printf("Session name: %s\n", session_name);
         title = "Euteran";
     }
 #else
@@ -319,7 +352,6 @@ void on_activate(GtkApplication *app, gpointer user_data) {
     gtk_window_set_default_size(GTK_WINDOW(window), 600, 400); 
     gtk_widget_add_css_class(GTK_WIDGET(window), "main_window_class");
 
-    printf("window pointer in activate %p\n", window);
 
     GFile *css_file = get_file_from_path();
     GtkCssProvider *provider = gtk_css_provider_new();
@@ -405,11 +437,19 @@ void on_activate(GtkApplication *app, gpointer user_data) {
     GtkWidget *music_holder_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
     gtk_widget_set_hexpand(music_holder_box, TRUE);
     gtk_widget_set_vexpand(music_holder_box, TRUE);
+    
+    GtkDropTarget *target =
+      gtk_drop_target_new (G_TYPE_INVALID, GDK_ACTION_COPY);
 
-    GtkDropTarget *target = gtk_drop_target_new(G_TYPE_STRING, GDK_ACTION_COPY | GDK_ACTION_MOVE);
+      gtk_drop_target_set_gtypes (target, (GType [5]) {
+        G_TYPE_STRING,
+        G_TYPE_FILE,
+        G_TYPE_ARRAY,
+        GDK_TYPE_FILE_LIST,
+        G_TYPE_BOXED
+      }, 5);
 
-
-    g_signal_connect(target, "drop", G_CALLBACK(on_drop), music_holder_box);
+    g_signal_connect(target, "drop", G_CALLBACK(on_drop), widgets_data);
     gtk_widget_add_controller(GTK_WIDGET(music_holder_box), GTK_EVENT_CONTROLLER(target));
 
    
@@ -461,6 +501,9 @@ void on_activate(GtkApplication *app, gpointer user_data) {
     gtk_widget_add_css_class(separator_style, "separator_style");
     gtk_box_append(GTK_BOX(music_holder_box), separator_style);
 
+    g_signal_handlers_disconnect_by_func(widgets_data->list_box, G_CALLBACK(play_selected_music), widgets_data);
+    g_signal_connect(widgets_data->list_box, "row-activated", G_CALLBACK(play_selected_music), widgets_data);
+
     g_signal_connect(widgets_data->music_button, "clicked", G_CALLBACK(pause_audio), NULL);
     g_signal_connect(window, "destroy", G_CALLBACK(on_window_destroy), widgets_data);
 
@@ -472,6 +515,7 @@ void on_activate(GtkApplication *app, gpointer user_data) {
 
 
 int main(int argc, char *argv[]) {
+    setlocale(LC_ALL, "en_US.UTF-8");
     GtkApplication *app = gtk_application_new("org.gtk.example", G_APPLICATION_DEFAULT_FLAGS);
     g_signal_connect(app, "activate", G_CALLBACK(on_activate), NULL);
     int status = g_application_run(G_APPLICATION(app), argc, argv);

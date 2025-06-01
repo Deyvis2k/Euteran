@@ -33,6 +33,22 @@ double get_duration_from_file(const char *file) {
     return duration;
 }
 
+char *cast_simple_double_to_string(double value) {
+    if (value < 0){
+        fprintf(stderr, "Error allocating memory in value\n");
+        return NULL;
+    }
+
+    char* buffer = malloc(10);  
+    if (!buffer){
+        fprintf(stderr, "Error allocating memory\n");
+        return NULL;
+    }
+
+    snprintf(buffer, 10, "%.0f", value);
+    return buffer;
+}
+
 
 char* cast_double_to_string(double value) {
     if (value < 0){
