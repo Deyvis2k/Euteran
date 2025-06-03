@@ -21,13 +21,13 @@
 
 .container_real_devices_class{
     border-radius: 4px;
-    border: 0.8px ridge floralwhite;
+    border: 0.3px ridge floralwhite;
     background-color: rebeccapurple;
 }
 
 .list_box_sources_class{
     border-radius: 4px;
-    border: 0.4px ridge floralwhite;
+    border: 0.3px ridge floralwhite;
     color: floralwhite;
     font-family: "JetbrainsMono Nerd Font";
     font-size: 12px;
@@ -39,9 +39,5 @@
 
 .grid_devices_class{
     background-color: lavender;
-}
-.new_window_devices_class{
-    min-width: 400px;
-    min-height: 400px;
 }
 

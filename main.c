@@ -26,6 +26,7 @@ typedef struct {
 static GTask *current_task = NULL;
 static GCancellable *current_cancellable = NULL;
 static guint progress_timer_id = 0;
+static gboolean light_mode = FALSE;
 
 static void play_audio_task(GTask *task, gpointer source_object, gpointer task_data, GCancellable *cancellable) {
     AudioTaskData *data = (AudioTaskData *) g_task_get_task_data(task);
@@ -142,8 +143,7 @@ void play_selected_music(GtkListBox *box, GtkListBoxRow *row, gpointer user_data
         return;
     }
     
-    GtkWidget *separator_ = gtk_widget_get_next_sibling(label);
-    GtkWidget *music_label = gtk_widget_get_next_sibling(separator_);
+    GtkWidget *music_label = gtk_widget_get_next_sibling(label);
     if (!GTK_IS_LABEL(music_label)) {
         printf("Erro: O segundo widget do GtkBox não é um GtkLabel\n");
         return;
@@ -323,6 +323,9 @@ static void on_window_destroy(GtkWidget *widget, gpointer user_data) {
     if (user_data) {
         g_free(user_data);
     }
+
+    g_print("Último volume de música é igual a: %.2f\n", last_volume);
+    save_current_settings(last_volume);
 }
 
 gboolean is_session_a_wm(const char* session_name, const char* actual_session_name) {
@@ -364,11 +367,11 @@ void on_activate(GtkApplication *app, gpointer user_data) {
     adw_application_window_set_content(window, main_box);
 
     AdwHeaderBar *header_bar = ADW_HEADER_BAR(adw_header_bar_new());
+    gtk_widget_add_css_class(GTK_WIDGET(header_bar), "header_bar");
     gtk_box_append(GTK_BOX(main_box), GTK_WIDGET(header_bar));
 
     GtkWidget *menu_button = gtk_menu_button_new();
     gtk_menu_button_set_label(GTK_MENU_BUTTON(menu_button), "Options");
-    // gtk_widget_add_css_class(menu_button, "menu_button");
     adw_header_bar_pack_start(header_bar, menu_button);
 
     GtkWidget *popover = gtk_popover_new();
@@ -437,6 +440,7 @@ void on_activate(GtkApplication *app, gpointer user_data) {
     GtkWidget *music_holder_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
     gtk_widget_set_hexpand(music_holder_box, TRUE);
     gtk_widget_set_vexpand(music_holder_box, TRUE);
+    gtk_widget_add_css_class(music_holder_box, "music_holder_box");
     
     GtkDropTarget *target =
       gtk_drop_target_new (G_TYPE_INVALID, GDK_ACTION_COPY);
@@ -454,7 +458,7 @@ void on_activate(GtkApplication *app, gpointer user_data) {
 
    
     GtkWidget *tag_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);
-    gtk_widget_add_css_class(tag_box, "tag_box");
+    // gtk_widget_add_css_class(tag_box, "tag_box");
     GtkWidget *tag_label_name = gtk_label_new("Music Name");
     gtk_widget_add_css_class(tag_label_name, "tag_label_name");
     gtk_widget_set_hexpand(tag_label_name, TRUE);
@@ -487,19 +491,16 @@ void on_activate(GtkApplication *app, gpointer user_data) {
     g_object_set_data(G_OBJECT(window), "widgets_data", widgets_data);
     g_object_set_data(G_OBJECT(window), "music_holder", music_holder_box);
 
+
     if (g_file_test(SYM_AUDIO_DIR, G_FILE_TEST_EXISTS)) {
         g_print(CYAN_COLOR "[INFO] Pasta ja existe\n" RESET_COLOR);
         g_print(GREEN_COLOR "[COMMAND] Examinando folder..\n" RESET_COLOR);
         system("sh src/sh/brokenlinks.sh");
     } else {
-        mkdir(SYM_AUDIO_DIR, 0777);
+        g_mkdir_with_parents(SYM_AUDIO_DIR, 0777);
         g_print(GREEN_COLOR "[COMMAND] Pasta criada\n" RESET_COLOR);
     }
     create_music_list(SYM_AUDIO_DIR, widgets_data, music_holder_box, play_selected_music);
-
-    GtkWidget *separator_style = gtk_separator_new(GTK_ORIENTATION_HORIZONTAL);
-    gtk_widget_add_css_class(separator_style, "separator_style");
-    gtk_box_append(GTK_BOX(music_holder_box), separator_style);
 
     g_signal_handlers_disconnect_by_func(widgets_data->list_box, G_CALLBACK(play_selected_music), widgets_data);
     g_signal_connect(widgets_data->list_box, "row-activated", G_CALLBACK(play_selected_music), widgets_data);
@@ -516,6 +517,9 @@ void on_activate(GtkApplication *app, gpointer user_data) {
 
 int main(int argc, char *argv[]) {
     setlocale(LC_ALL, "en_US.UTF-8");
+    setenv("GTK_THEME", "Adwaita:dark", 1);
+    g_print("volume from settings: %.2f\n", get_volume_from_settings());
+    last_volume = get_volume_from_settings();
     GtkApplication *app = gtk_application_new("org.gtk.example", G_APPLICATION_DEFAULT_FLAGS);
     g_signal_connect(app, "activate", G_CALLBACK(on_activate), NULL);
     int status = g_application_run(G_APPLICATION(app), argc, argv);

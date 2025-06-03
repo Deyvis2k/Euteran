@@ -225,3 +225,50 @@ char* get_within_quotes(const char* str) {
 
     return result;
 }
+
+
+void save_current_settings(float last_volume){
+    if(!g_file_test(CONFIGURATION_DIR, G_FILE_TEST_EXISTS)){
+        g_mkdir_with_parents(CONFIGURATION_DIR, 0777);
+    }
+    gchar *link_to_save = g_strdup_printf("%s/%s", CONFIGURATION_DIR, "current_settings.conf");
+    FILE *file_to_save = fopen(link_to_save, "w");
+
+    if(file_to_save == NULL){
+        g_print("Erro ao abrir o arquivo para escrita\n");
+        g_free(link_to_save);
+        return;
+    }
+    g_print("last_volume: %f\n", last_volume);
+    fprintf(file_to_save, "last_volume = %f\n", last_volume);
+    fclose(file_to_save);
+    g_free(link_to_save);
+}
+
+float get_volume_from_settings(){
+    if(!g_file_test(CONFIGURATION_DIR, G_FILE_TEST_EXISTS)){
+        g_mkdir_with_parents(CONFIGURATION_DIR, 0777);
+        return 0.500f;
+    }
+    gchar *link_to_save = g_strdup_printf("%s/%s", CONFIGURATION_DIR, "current_settings.conf");
+    FILE *file_to_read = fopen(link_to_save, "r");
+    if(file_to_read == NULL){
+        g_print("Erro ao abrir o arquivo para leitura\n");
+        g_free(link_to_save);
+        return 0.500f;
+    }
+    
+    char line[256];
+    while (fgets(line, sizeof(line), file_to_read)) {
+        if (strncmp(line, "last_volume = ", 14) == 0) {
+            float volume = atof(line + 14);
+            fclose(file_to_read);
+            g_free(link_to_save);
+            return volume;
+        }
+    }
+    fclose(file_to_read);
+    g_free(link_to_save);
+    return 0.500f;
+}
+

@@ -3,7 +3,7 @@
 
 
 #define SYM_AUDIO_DIR "temp/symlinks/"
-
+#define CONFIGURATION_DIR "temp/configuration/"
 #define RED_COLOR  "\033[31m"           
 #define GREEN_COLOR "\033[32m"          
 #define YELLOW_COLOR  "\033[33m"        

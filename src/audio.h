@@ -13,7 +13,7 @@
 #define DEFAULT_RATE      44100
 #define DEFAULT_CHANNELS  2
 
-static float last_volume = 0.5f;
+static float last_volume;
 static GMutex paused_mutex;
 static gboolean paused;
 

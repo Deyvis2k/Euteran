@@ -2,14 +2,20 @@
 @import "progress_bar.css";
 @import "devices.css";
 
+
 .main_window_class{
-    /* background-color: rgba(48,48,48,0.3); */
+    background-color: rgba(48,48,48,0.3);
     opacity: 0.8;
 }
 
 /* .selected_music_class{ */
 /*     border: 0.3px ridge floralwhite; */
 /* } */
+
+.header_bar{
+    background-color: rgba(48,48,48,0.3);
+    border: none;
+}
 
 .popover_button{
     /* box-shadow: none; */
@@ -31,6 +37,7 @@
     font-family: "JetbrainsMono Nerd Font";
 }
 
+
 .popover contents{
     box-shadow: none;
     /* border: none; */
@@ -50,12 +57,6 @@
     font-family: "JetbrainsMono Nerd Font";
 }
 
-.separator_style{
-    border: 0.075mm solid white;
-    opacity: 1;
-}
-
-
 .popover_box{
     box-shadow: none;
     border: none;
@@ -66,9 +67,10 @@
     border: 0.3px ridge floralwhite;
 }
 
-/* music_name_label{ */
+.music_name_label{
     /* background-color: transparent; */
-/* } */
+    border-left: 0.3mm ridge floralwhite;
+}
 
 .menu_button{
     margin: 5px;
@@ -82,7 +84,7 @@
 .menu_button button.toggle:hover{
     font-size: 10px;
     margin: 5px;
-    border: 0.5px solid var(--rosewater);
+    border: 0.5px rigde var(--rosewater);
     background-color: transparent;
     outline-color: transparent;
     box-shadow: none;
@@ -119,6 +121,7 @@
 .slider_main {
     border-radius: 3px;
     background-color: transparent;
+    background-color: rgba(48,48,48,0.3);
 }
 
 .tag_box {
@@ -129,10 +132,13 @@
     color: white;
     font-family: "JetbrainsMono Nerd Font";
     font-size: 16px;
+    border: 0.3px ridge floralwhite;
+    background-color: rgba(48,48,48,0.3);
 }
 
 .separator_class{
-    border: 0.3pt ridge floralwhite;
+    border: 0.1mm solid floralwhite;
+    background-color: rgba(48,48,48,0.3);
 }
 
 .list_box row:selected{

@@ -51,5 +51,6 @@ char *get_within_quotes(const char *str);
 void remove_if_not_number(char *str);
 char *remove_outside_quotes(char *str);
 char *cast_simple_double_to_string(double value);
-
+void save_current_settings(float last_volume);
+float get_volume_from_settings();
 #endif
