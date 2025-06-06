@@ -2,19 +2,75 @@
 @import "progress_bar.css";
 @import "devices.css";
 
-
 .main_window_class{
-    background-color: rgba(48,48,48,0.3);
-    opacity: 0.8;
+    background-color: rgba(48,48,48,0.2);
 }
+
+.main_window_class widget{
+    background-color: rgba(48,48,48,0.2);
+}
+
+
+
+.main_box{
+    background-color: rgba(48,48,48,0.2);
+}
+
+
 
 /* .selected_music_class{ */
 /*     border: 0.3px ridge floralwhite; */
 /* } */
 
 .header_bar{
-    background-color: rgba(48,48,48,0.3);
+    background-color: rgba(48,48,48,0.02);
     border: none;
+    box-shadow: none;
+}
+
+.header_bar windowhandle{
+    background-color: rgba(48,48,48,0.02);
+    border: none;
+    box-shadow: none;
+}
+
+.header_bar headerbar windowhandle{
+    background-color: rgba(48,48,48,0.02);
+    border: none;
+    box-shadow: none;
+}
+
+.header_bar windowhandle box{
+    background-color: rgba(48,48,48,0.02);
+    border: none;
+    box-shadow: none;
+}
+
+.header_bar box widget{
+    background-color: rgba(48,48,48,0.02);
+    border: none;
+    box-shadow: none;
+}
+
+.header_bar box.start windowcontrols.start{
+    background-color: rgba(48,48,48,0.02);
+    border: none;
+    box-shadow: none;
+}
+
+.header_bar box.end windowcontrols.end{
+    background-color: rgba(48,48,48,0.02);
+    border: none;
+    box-shadow: none;
+}
+
+
+.line_class {
+    background-color: rgba(128, 128, 128, 0.6);
+}
+
+.prefs_group{
+    color: dimgray;
 }
 
 .popover_button{
@@ -48,15 +104,6 @@
     box-shadow: none;
 }
 
-.music_row{
-    background-color: transparent;
-    border-left: 0.3px ridge floralwhite;
-    border-right: 0.3px ridge floralwhite;
-    box-shadow: none;
-    /* opacity: 0.8; */
-    font-family: "JetbrainsMono Nerd Font";
-}
-
 .popover_box{
     box-shadow: none;
     border: none;
@@ -64,19 +111,23 @@
 }
 
 .music_display_content_class{
-    border: 0.3px ridge floralwhite;
+    border: 0.3px ridge rgba(38,38,38,0.15);
+    background-color: rgba(38,38,38,0.15);
+    border-radius: 8px;
+
 }
 
 .music_name_label{
     /* background-color: transparent; */
-    border-left: 0.3mm ridge floralwhite;
+    border-left: 0.15mm ridge floralwhite;
+    border-left-style:double;
 }
 
 .menu_button{
     margin: 5px;
     font-size: 10px;
     text-shadow: none;
-    background-color: transparent;
+    background-color: rgba(48,48,48,0.2);
     outline-color: transparent;
     box-shadow: none;
 }
@@ -121,7 +172,13 @@
 .slider_main {
     border-radius: 3px;
     background-color: transparent;
-    background-color: rgba(48,48,48,0.3);
+    border-color: red;
+}
+
+
+.slider_main slider indicator{
+    background-color: rgba(28,28,28,0.9);
+    box-shadow: none;
 }
 
 .tag_box {
@@ -130,24 +187,41 @@
 
 .list_box{
     color: white;
-    font-family: "JetbrainsMono Nerd Font";
+    font-family: "JetBrains Mono NerdFont";
+    font-style: italic;
     font-size: 16px;
-    border: 0.3px ridge floralwhite;
-    background-color: rgba(48,48,48,0.3);
+    background-color: rgba(48,48,48,0.01);
+    box-shadow: none;
+    /* border: 0.3px ridge floralwhite; */
 }
+
+/*when not selected */
+
+/* Estilo padrão, aplicado apenas quando NÃO estiver hover ou selecionado */
+.list_box row.activatable:not(:hover):not(:selected) {
+    background-color: rgba(48,48,48,0.01);
+    box-shadow: none;
+}
+
+.list_box row.activatable{
+    box-shadow: none;
+    padding: 0px;
+}
+
+
 
 .separator_class{
     border: 0.1mm solid floralwhite;
     background-color: rgba(48,48,48,0.3);
 }
 
-.list_box row:selected{
-    opacity: 1;
-}
-
 .music_holder_grid{
     border: 0.3px ridge floralwhite;
 }
+
+/* .music_holder_box{ */
+/*     background-color: red; */
+/* } */
 
 .music_button_class{
     background: transparent;

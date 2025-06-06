@@ -43,7 +43,10 @@ void create_music_list(const gchar *path, WidgetsData *widgets_data, GtkWidget *
 
         GtkWidget *row_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);
         gtk_widget_set_hexpand(row_box, TRUE);
-        // gtk_widget_add_css_class(row_box, "music_row");
+        gtk_widget_set_margin_top(row_box, 0);
+        gtk_widget_set_margin_bottom(row_box, 0);
+        // decrease vertical space between rows
+        gtk_widget_add_css_class(row_box, "row_box_class");
 
         GtkWidget *label = gtk_label_new(new_music_list.musics[i].name);
         gtk_label_set_ellipsize(GTK_LABEL(label), PANGO_ELLIPSIZE_END);
@@ -53,12 +56,22 @@ void create_music_list(const gchar *path, WidgetsData *widgets_data, GtkWidget *
         // gtk_widget_add_css_class(label, "music_name_label");
         gtk_box_append(GTK_BOX(row_box), label);
 
+        GtkWidget *line = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+        gtk_widget_set_size_request(line, 1, -1);
+        gtk_widget_set_halign(line, GTK_ALIGN_END);
+        gtk_widget_set_vexpand(line, TRUE);
+        gtk_widget_set_margin_top(line, 0); 
+        gtk_widget_set_margin_bottom(line, 0); 
+        gtk_widget_set_valign(line, GTK_ALIGN_FILL);
+        gtk_widget_add_css_class(line, "line_class");
+        gtk_box_append(GTK_BOX(row_box), line);
+
         const char *duration_str = cast_double_to_string(new_music_list.musics[i].duration);
         GtkWidget *duration = gtk_label_new(duration_str ? duration_str : "0.0");        
         int offset = (85 - (strlen(duration_str) * 10)) >= 0 ? (85 - (strlen(duration_str) * 10)) : 0;
         offset = offset - 20;
         gtk_label_set_xalign(GTK_LABEL(duration), 1.0);
-        gtk_widget_add_css_class(duration, "music_name_label");
+        // gtk_widget_add_css_class(duration, "music_name_label");
         gtk_widget_set_margin_end(duration, offset);
         gtk_box_append(GTK_BOX(row_box), duration);
 
@@ -173,6 +186,16 @@ gboolean add_music_to_list(gpointer user_data, gchar *path, const gchar *uri, GF
     gtk_widget_set_hexpand(label, TRUE);
     // gtk_widget_add_css_class(label, "music_name_label");
     gtk_box_append(GTK_BOX(row_box), label);
+
+    GtkWidget *line = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+    gtk_widget_set_size_request(line, 1, -1);
+    gtk_widget_set_halign(line, GTK_ALIGN_END);
+    gtk_widget_set_vexpand(line, TRUE);
+    gtk_widget_set_margin_top(line, 0); 
+    gtk_widget_set_margin_bottom(line, 0); 
+    gtk_widget_set_valign(line, GTK_ALIGN_FILL);
+    gtk_widget_add_css_class(line, "line_class");
+    gtk_box_append(GTK_BOX(row_box), line);
 
     double duration = strcmp(ext, "mp3") == 0 ? get_duration(clean_uri) : get_duration_ogg(clean_uri);
     const char *duration_str = cast_double_to_string(duration);

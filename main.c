@@ -143,7 +143,7 @@ void play_selected_music(GtkListBox *box, GtkListBoxRow *row, gpointer user_data
         return;
     }
     
-    GtkWidget *music_label = gtk_widget_get_next_sibling(label);
+    GtkWidget *music_label = gtk_widget_get_last_child(box_child);
     if (!GTK_IS_LABEL(music_label)) {
         printf("Erro: O segundo widget do GtkBox não é um GtkLabel\n");
         return;
@@ -364,10 +364,13 @@ void on_activate(GtkApplication *app, gpointer user_data) {
                                               GTK_STYLE_PROVIDER_PRIORITY_USER);
 
     GtkWidget *main_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+    gtk_widget_add_css_class(main_box, "main_box");
     adw_application_window_set_content(window, main_box);
 
     AdwHeaderBar *header_bar = ADW_HEADER_BAR(adw_header_bar_new());
     gtk_widget_add_css_class(GTK_WIDGET(header_bar), "header_bar");
+    adw_header_bar_set_show_title(header_bar, FALSE);
+    adw_header_bar_set_show_back_button(header_bar, FALSE);
     gtk_box_append(GTK_BOX(main_box), GTK_WIDGET(header_bar));
 
     GtkWidget *menu_button = gtk_menu_button_new();
@@ -412,6 +415,7 @@ void on_activate(GtkApplication *app, gpointer user_data) {
     gtk_widget_add_css_class(music_display_content, "music_display_content_class");
 
     GtkWidget *slider = gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL, 0, 1, 0.01);
+    gtk_range_set_value(GTK_RANGE(slider), get_volume_from_settings());
     gtk_widget_add_css_class(slider, "slider_main");
     gtk_widget_set_hexpand(slider, TRUE);
     gtk_widget_set_halign(slider, GTK_ALIGN_FILL);
@@ -435,6 +439,7 @@ void on_activate(GtkApplication *app, gpointer user_data) {
 
     AdwClamp *clamp = ADW_CLAMP(adw_clamp_new());
     adw_clamp_set_child(clamp, music_display_content);
+    gtk_widget_add_css_class(GTK_WIDGET(clamp), "header_bar");
     gtk_box_append(GTK_BOX(main_box), GTK_WIDGET(clamp));
 
     GtkWidget *music_holder_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
@@ -458,7 +463,7 @@ void on_activate(GtkApplication *app, gpointer user_data) {
 
    
     GtkWidget *tag_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);
-    // gtk_widget_add_css_class(tag_box, "tag_box");
+    gtk_widget_add_css_class(tag_box, "tag_box");
     GtkWidget *tag_label_name = gtk_label_new("Music Name");
     gtk_widget_add_css_class(tag_label_name, "tag_label_name");
     gtk_widget_set_hexpand(tag_label_name, TRUE);
@@ -475,8 +480,10 @@ void on_activate(GtkApplication *app, gpointer user_data) {
     widgets_data->list_box = list_box;
     gtk_box_append(GTK_BOX(music_holder_box), list_box);
 
+    
+
     AdwPreferencesGroup *prefs_group = ADW_PREFERENCES_GROUP(adw_preferences_group_new());
-    adw_preferences_group_set_title(prefs_group, "Music Library");
+    gtk_widget_add_css_class(GTK_WIDGET(prefs_group), "prefs_group");
     adw_preferences_group_add(prefs_group, music_holder_box);
     gtk_box_append(GTK_BOX(main_box), GTK_WIDGET(prefs_group));
 
@@ -517,8 +524,14 @@ void on_activate(GtkApplication *app, gpointer user_data) {
 
 int main(int argc, char *argv[]) {
     setlocale(LC_ALL, "en_US.UTF-8");
-    setenv("GTK_THEME", "Adwaita:dark", 1);
+    setenv("GTK_THEME", "Catppuccin-Mocha", 1);
     g_print("volume from settings: %.2f\n", get_volume_from_settings());
+
+   char* name_ = getenv("GTK_THEME");
+   g_print("GTK_THEME: %s\n", name_);
+   
+
+
     last_volume = get_volume_from_settings();
     GtkApplication *app = gtk_application_new("org.gtk.example", G_APPLICATION_DEFAULT_FLAGS);
     g_signal_connect(app, "activate", G_CALLBACK(on_activate), NULL);
