@@ -143,7 +143,6 @@ gboolean add_music_to_list(gpointer user_data, gchar *path, const gchar *uri, GF
     }
 
     const char *FILENAME = strrchr(clean_uri, '/') + 1;
-    g_print("filename with clean uri: %s\n", FILENAME);
 
     gchar *link_path = g_strdup_printf("%s%s", SYM_AUDIO_DIR, FILENAME);
     if (g_file_test(link_path, G_FILE_TEST_EXISTS)) {
@@ -203,7 +202,6 @@ gboolean add_music_to_list(gpointer user_data, gchar *path, const gchar *uri, GF
     int offset = (85 - (strlen(duration_str) * 10)) >= 0 ? (85 - (strlen(duration_str) * 10)) : 0;
     offset = offset - 20;
     gtk_label_set_xalign(GTK_LABEL(duration_label), 1.0);
-    // gtk_widget_add_css_class(duration_label, "music_name_label");
     gtk_widget_set_margin_end(duration_label, offset);
     gtk_box_append(GTK_BOX(row_box), duration_label);
 

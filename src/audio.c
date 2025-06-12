@@ -9,6 +9,16 @@
 static GMutex paused_mutex;
 static gboolean paused = FALSE;
 
+static float last_volume = 0.0f;
+
+float get_last_volume() {
+    return last_volume;
+}
+void set_last_volume(float volume) {
+    last_volume = volume;
+}
+
+
 static void apply_volume(int16_t *buffer, size_t size, float volume){
     for(int i = 0; i < size; i++){
         buffer[i] = (int16_t)(buffer[i] * volume);
@@ -86,7 +96,7 @@ double get_duration(const char *music_path) {
     long rate;
     int channels, encoding;
     off_t frames;
-    double duration = -1;
+    double duration = 0;
 
     mpg123_init();
     mpg = mpg123_new(NULL, &err);
@@ -152,7 +162,6 @@ void play_audio(const char *musicfile, volume_data *volume, GCancellable *cancel
         data.rate = info.sample_rate;
         data.channels = info.channels;
         data.encoding = SPA_AUDIO_FORMAT_S16;
-        printf("OGG - Taxa de Amostragem: %lu Hz, Canais: %d\n", data.rate, data.channels);
     } else {
         mpg123_init();
         data.mpg = mpg123_new(NULL, &err);

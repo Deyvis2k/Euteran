@@ -239,8 +239,7 @@ void save_current_settings(float last_volume){
         g_free(link_to_save);
         return;
     }
-    g_print("last_volume: %f\n", last_volume);
-    fprintf(file_to_save, "last_volume = %f\n", last_volume);
+    fprintf(file_to_save, "last_volume = %f\n", get_last_volume());
     fclose(file_to_save);
     g_free(link_to_save);
 }

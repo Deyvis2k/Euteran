@@ -26,42 +26,76 @@
     background-color: rgba(48,48,48,0.02);
     border: none;
     box-shadow: none;
+    padding: 0px;
+    border-color: transparent;
+    caret-color: transparent;
+    outline-color: transparent;
 }
 
 .header_bar windowhandle{
     background-color: rgba(48,48,48,0.02);
     border: none;
     box-shadow: none;
+    border-color: transparent;
+    caret-color: transparent;
+    outline-color: transparent;
 }
 
 .header_bar headerbar windowhandle{
     background-color: rgba(48,48,48,0.02);
     border: none;
     box-shadow: none;
+    border-color: transparent;
+    caret-color: transparent;
+    outline-color: transparent;
 }
 
 .header_bar windowhandle box{
     background-color: rgba(48,48,48,0.02);
     border: none;
     box-shadow: none;
+    border-color: transparent;
+    caret-color: transparent;
+    outline-color: transparent;
 }
 
 .header_bar box widget{
     background-color: rgba(48,48,48,0.02);
     border: none;
     box-shadow: none;
+    border-color: transparent;
+    caret-color: transparent;
+    outline-color: transparent;
 }
 
-.header_bar box.start windowcontrols.start{
-    background-color: rgba(48,48,48,0.02);
+.header_bar windowcontrols.start {
+    background-color: transparent;
     border: none;
     box-shadow: none;
+    border-color: transparent;
+    caret-color: transparent;
+    outline-color: transparent;
 }
 
-.header_bar box.end windowcontrols.end{
+.header_bar windowcontrols.end button{
     background-color: rgba(48,48,48,0.02);
+    /* outline-color: transparent; */
+    /* border: none; */
+    /* box-shadow: none; */
+    /* border-color: transparent; */
+    /* caret-color: transparent; */
+    /* outline-color: transparent; */
+}
+
+.header_bar windowcontrols.end{
+    background-color: rgba(48,48,48,0.01);
+    outline-color: transparent;
     border: none;
     box-shadow: none;
+    border-radius: 0px;
+    border-color: transparent;
+    caret-color: transparent;
+    outline-color: transparent;
 }
 
 
@@ -168,17 +202,45 @@
     box-shadow: none;
 }
 
-
-.slider_main {
-    border-radius: 3px;
-    background-color: transparent;
-    border-color: red;
+.slider_main slider{
+    box-shadow: none;
+    background-color: rgba(148,162, 155, 0.95);
+    border-color: transparent;
+    outline-color: transparent;
+    background-image: none;
+    min-height: 16px;
+    min-width: 16px;
+    margin: -7px;
+    outline-offset: -3px;
+    transition-timing-function: ease-in-out;
+    transition-property: all;
+    outline-style: dashed;
+    padding: 0px;
+    border-width: 0px;
+    border-top-right-radius: 12px;
+    border-bottom-right-radius: 12px;
+    border-top-left-radius: 12px;
+    border-bottom-left-radius: 12px;
 }
 
-
-.slider_main slider indicator{
-    background-color: rgba(28,28,28,0.9);
+.slider_main trough {
     box-shadow: none;
+    min-height: 6px;
+    border: none;
+    border-radius: 3px;
+}
+
+.slider_main highlight{
+    /* background-color: var(--purple); */
+    /* background-image: none; */
+    box-shadow: none;
+    border-radius: 0px;
+    margin: -7px;
+    outline-offset: -3px;
+    min-height: 16px;
+    min-width: 16px;
+    transition-timing-function: ease-in-out;
+    transition-property: all;
 }
 
 .tag_box {

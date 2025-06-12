@@ -8,19 +8,43 @@
     box-shadow: none;
 }
 
+.progress_bar_class trough {
+    box-shadow: none;
+    border: none;
+    min-height: 6px;
+    border-radius: 3px;
+}
+
 
 .progress_bar_class slider {
     background-color: transparent;
     /* border-radius: 4px; */
+    background-image: none;
     box-shadow: none;
+    border-radius: 0px;
     border: none;
+    margin: -7px;
+    outline-offset: -3px;
+    min-height: 16px;
+    min-width: 16px;
+    transition-timing-function: ease-in-out;
+    transition-property: all;
+    outline-style: dashed;
 }
 
-.progress_bar_class slider indicator{
-    background-color: red;
+.progress_bar_class highlight{
+    /* background-color: red; */
+
+    /* background-color: var(--purple); */
     /* border-radius: 4px; */
     box-shadow: none;
-    border: 0.3px ridge floralwhite;
+    border-image: none;
+    /* background-image : none; */
+    border: none;
+    margin: 0px;
+    outline-offset: -3px;
+    outline-style: dashed;
+    padding: 0px;
 }
 
 /* .progress_bar_class trough highlight { */

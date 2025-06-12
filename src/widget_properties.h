@@ -1,0 +1,46 @@
+#include "audio.h"
+
+#ifndef WIDGET_PROPERTIES
+#define WIDGET_PROPERTIES
+
+#include <gtk/gtk.h>
+#include <gdk/gdk.h>
+#include "gio/gio.h"
+#include "glib-object.h"
+#include "glib.h"
+#include "e_widgets.h"
+#include "constants.h"
+
+
+
+static GTask *current_task = NULL;
+static GCancellable *current_cancellable = NULL;
+static guint progress_timer_id = 0;
+static gboolean light_mode = FALSE;
+
+gboolean on_drop(
+    GtkDropTarget *target,
+    const GValue *value,
+    double x,
+    double y,
+    gpointer user_data
+);
+
+gboolean on_clicked_progess_bar(
+    GtkRange* self,
+    GtkScrollType* scroll,
+    gdouble value,
+    gpointer user_data
+);
+
+void create_slider(GtkWidget *slider, volume_data *volume);
+void on_window_destroy(GtkWidget *widget, gpointer user_data);
+void on_volume_changed(GtkRange *range, gpointer user_data);
+void play_audio_task(GTask *task, gpointer source_object, gpointer task_data, GCancellable *cancellable);
+gboolean update_progress_bar(gpointer user_data);
+gboolean pause_audio(GtkWidget *button, gpointer user_data);
+void play_selected_music(GtkListBox *box, GtkListBoxRow *row, gpointer user_data);
+
+
+
+#endif

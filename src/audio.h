@@ -13,13 +13,19 @@
 #define DEFAULT_RATE      44100
 #define DEFAULT_CHANNELS  2
 
-static float last_volume;
 static GMutex paused_mutex;
 static gboolean paused;
+
 
 typedef struct {
     float volume;
 } volume_data;
+
+typedef struct {
+    char filename[512];
+    volume_data *volume;
+    double music_duration;
+} AudioTaskData;
 
 struct data {
     struct pw_main_loop *loop;
@@ -38,7 +44,8 @@ struct data {
     gboolean is_ogg;
 };
 
-
+float get_last_volume(void);
+void set_last_volume(float volume);
 static void on_process(void *userdata);
 static void apply_volume(int16_t *buffer, size_t size, float volume);
 static const struct pw_stream_events stream_events;
