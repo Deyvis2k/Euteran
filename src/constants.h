@@ -1,6 +1,4 @@
-#ifndef CONSTANTS_H
-#define CONSTANTS_H
-
+#pragma once
 
 #define SYM_AUDIO_DIR "temp/symlinks/"
 #define CONFIGURATION_DIR "temp/configuration/"
@@ -12,6 +10,3 @@
 #define CYAN_COLOR    "\033[36m"        
 #define RESET_COLOR    "\033[0m"        
 
-
-#endif
-    

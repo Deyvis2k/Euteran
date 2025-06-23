@@ -1,7 +1,11 @@
 #include "widgets_devices.h"
+#include "e_logs.h"
+#include "audio_devices.h"
+#include "adwaita.h"
+
+static gboolean opened_window = FALSE;
 
 static void on_window_destroy(GtkWidget *window, gpointer user_data) {
-    g_print("deleting widgets_device\n");
     struct audio_devices *audio_devices = (struct audio_devices *)user_data;
     if(audio_devices) {
         if (audio_devices->sink) {
@@ -29,6 +33,8 @@ static void on_window_destroy(GtkWidget *window, gpointer user_data) {
         free(audio_devices);
         audio_devices = NULL;
     }
+
+    opened_window = FALSE;
 }
 
 gboolean on_key_press(GtkEventControllerKey *controller, guint keyval,
@@ -44,15 +50,14 @@ gboolean on_key_press(GtkEventControllerKey *controller, guint keyval,
 }
 
 void construct_virtual_audio_widget(GtkWidget *grid) {
-    printf("Constructing virtual audio widget\n");
     struct audio_device **sinks = get_audio_devices(COMMAND_VIRTUAL_AUDIO_SINK);
     if (!sinks) {
-        printf("Erro: get_audio_devices retornou NULL\n");
+        log_error("Erro: get_audio_devices retornou NULL");
         return;
     }
     struct audio_device **sources = get_audio_devices(COMMAND_VIRTUAL_AUDIO_SOURCE);
     if (!sources) {
-        printf("Erro: get_audio_devices retornou NULL\n");
+        log_error("Erro: get_audio_devices retornou NULL");
         return;
     }
 
@@ -74,7 +79,7 @@ void construct_virtual_audio_widget(GtkWidget *grid) {
 
     struct audio_devices* audio_devices = malloc(sizeof(struct audio_devices));
     if (!audio_devices) {
-        printf("Erro: falha ao alocar audio_devices\n");
+        log_error("Erro: falha ao alocar audio_devices");
         free(sinks);
         free(sources);
         return;
@@ -86,7 +91,7 @@ void construct_virtual_audio_widget(GtkWidget *grid) {
     audio_devices->source_count = source_count;
 
     if(sink_count == 0 && source_count == 0) {
-        printf("Nenhum sink ou source encontrado\n");
+        log_error("Nenhum sink ou source encontrado");
         free(audio_devices);
         free(sinks);
         free(sources);
@@ -125,20 +130,40 @@ void construct_virtual_audio_widget(GtkWidget *grid) {
     gtk_widget_set_visible(virtual_box_audio_source, TRUE);
 }
 
-void construct_widget(GtkWidget *button) {
+void construct_widget(GtkWidget *button, gpointer user_data) {
+    GtkWidget *window_parent = (GtkWidget *)user_data;
+    if(!GTK_IS_WIDGET(window_parent) || window_parent == NULL) {
+        log_error("Erro: window nao eh um GtkWidget"); 
+        return;
+    }
+    if(opened_window) {
+        log_warning("Janela ja aberta");
+        return;
+    }
+    opened_window = TRUE;
+    
+    GtkWidget *menu_button_object = g_object_get_data(
+    G_OBJECT(window_parent), "menu_button_popover");
+
+    if(menu_button_object)
+        gtk_menu_button_popdown(GTK_MENU_BUTTON(menu_button_object));
+
+
     struct audio_device **sinks = get_audio_devices(COMMAND_AUDIO_SINK);
     if (!sinks) {
-        printf("Erro: get_audio_devices retornou NULL\n");
+        log_error("Erro: get_audio_devices retornou NULL");
+        free(sinks);
         return;
     }
     struct audio_device **sources = get_audio_devices(COMMAND_AUDIO_SOURCE);
     if (!sources) {
         printf("Erro: get_audio_devices retornou NULL\n");
+        log_error("Erro: get_audio_devices retornou NULL");
         free(sinks);
+        free(sources);
         return;
     }
     
-    // Contagem e validação de dispositivos
     size_t sink_count = 0;
     for (size_t i = 0; sinks[i] != NULL; i++) {
         if (sinks[i]->node_description != NULL && strlen(sinks[i]->node_description) != 0) {
@@ -153,7 +178,7 @@ void construct_widget(GtkWidget *button) {
     }
     
     if (sink_count == 0 && source_count == 0) {
-        printf("Nenhum sink ou source encontrado\n");
+        log_warning("Nenhum sink ou source encontrado");
         free(sinks);
         free(sources);
         return;
@@ -161,9 +186,10 @@ void construct_widget(GtkWidget *button) {
     
     struct audio_devices *audio_devices = malloc(sizeof(struct audio_devices));
     if (!audio_devices) {
-        printf("Erro: falha ao alocar audio_devices\n");
+        log_error("Erro: falha ao alocar audio_devices");
         free(sinks);
         free(sources);
+        free(audio_devices);
         return;
     }
     audio_devices->sink = sinks;
@@ -172,9 +198,8 @@ void construct_widget(GtkWidget *button) {
     audio_devices->source_count = source_count;
     g_object_set_data(G_OBJECT(button), "audio_devices", audio_devices);
     
-    // Criação da janela
     GtkWidget *new_window = gtk_window_new();
-    gtk_window_set_title(GTK_WINDOW(new_window), "Background");
+    gtk_window_set_title(GTK_WINDOW(new_window), "Euteran-Top");
     gtk_window_set_default_size(GTK_WINDOW(new_window), 400, 400);
     gtk_widget_add_css_class(GTK_WIDGET(new_window), "new_window_devices_class");
     
@@ -234,7 +259,25 @@ void construct_widget(GtkWidget *button) {
         gtk_box_append(GTK_BOX(box), source_section);
     }
     
-    GtkWidget *confirm_button = gtk_button_new_with_label("Confirmar");
+    GtkWidget *clamp = adw_clamp_new();
+    adw_clamp_set_maximum_size(ADW_CLAMP(clamp), 600); 
+    gtk_widget_set_margin_top(clamp, 16);
+
+    GtkWidget *label = gtk_label_new(
+        "Click on confirm to synchronize the sink and source.\n"
+        "Note that this will create a new sink and source with the same name."
+    );
+    gtk_label_set_wrap(GTK_LABEL(label), TRUE);
+    gtk_label_set_justify(GTK_LABEL(label), GTK_JUSTIFY_CENTER);
+    gtk_widget_set_halign(label, GTK_ALIGN_CENTER);
+    gtk_widget_add_css_class(GTK_WIDGET(label), "label_devices_class");
+    gtk_widget_set_valign(label, GTK_ALIGN_CENTER);
+
+    adw_clamp_set_child(ADW_CLAMP(clamp), label);
+    gtk_box_append(GTK_BOX(box), clamp);
+    
+    
+    GtkWidget *confirm_button = gtk_button_new_with_label("Confirm");
     gtk_widget_set_halign(confirm_button, GTK_ALIGN_CENTER);
     gtk_widget_set_margin_top(confirm_button, 16);
     gtk_box_append(GTK_BOX(box), confirm_button);

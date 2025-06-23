@@ -1,16 +1,11 @@
-#ifndef UTILS_H
-#include <string.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <unistd.h>
-#include <dirent.h>
+#pragma once
+
 #include <gio/gio.h>
 #include <gtk/gtk.h>
-#define UTILS_H
+
 
 #define MINUTE_CONVERT 1.0f / 60.0f
+#define ALLOWED_EXTENSION ".mp3"
 
 
 typedef void (*PlayMusicFunc)(GtkListBox*, GtkListBoxRow *, gpointer);
@@ -35,6 +30,7 @@ typedef struct{
     GtkWidget *window_parent;
     double music_duration;
     double elapsed_time;
+    GtkShortcutController *controlador_key;
 } WidgetsData;
 
 
@@ -53,4 +49,3 @@ char *remove_outside_quotes(char *str);
 char *cast_simple_double_to_string(double value);
 void save_current_settings(float last_volume);
 float get_volume_from_settings();
-#endif

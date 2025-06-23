@@ -1,6 +1,21 @@
 #include "widget_properties.h"
+#include "e_commandw.h"
+#include "e_logs.h"
+#include "e_widgets.h"
+#include "constants.h"
+#include "gio/gio.h"
+#include "gtk/gtk.h"
+#include "utils.h"
 
-void play_audio_task(GTask *task, gpointer source_object, gpointer task_data, GCancellable *cancellable) {
+
+
+void play_audio_task(
+    GTask           *task, 
+    gpointer        source_object, 
+    gpointer        task_data, 
+    GCancellable    *cancellable
+) 
+{
     AudioTaskData *data = (AudioTaskData *) g_task_get_task_data(task);
     if (!data) {
         printf("Error: no filename\n");
@@ -30,8 +45,7 @@ void on_task_completed(GObject *source_object, GAsyncResult *res, gpointer user_
     if (G_IS_TASK(task)) {
         g_object_unref(task); 
     }
-    printf(MAGENTA_COLOR "[LOG] Task finalizada e recursos liberados.\n" RESET_COLOR);
-    printf(RESET_COLOR);
+    log_message("Task finalizada e recursos liberados.");
 }
 
 gboolean update_progress_bar(gpointer user_data) {
@@ -201,68 +215,21 @@ gboolean on_drop(
     double y,
     gpointer user_data
 ) {
-    if (G_VALUE_HOLDS(value, G_TYPE_FILE)) {
-        GFile *file = g_value_get_object(value); 
-        if (!file) {
-            g_print("Erro: GFile inválido\n");
-            return FALSE;
-        }
-        printf("URI do arquivo: %s\n", g_file_get_uri(file));
-        gchar *uri = g_file_get_uri(file);
-        gchar *path = g_file_get_path(file);
-        if (!path) {
-            g_print("Erro ao obter caminho do arquivo: %s\n", uri);
-            g_free(uri);
-            return FALSE;
-        }
-
-        g_strchomp(uri);
-        g_strchomp(path);
-        gboolean result = add_music_to_list(user_data, path, uri, file, play_selected_music);
-        
-        g_free(uri);
-        g_free(path);
-        return result;
+    GdkFileList *file_list = g_value_get_boxed (value);
+    GSList *list = gdk_file_list_get_files (file_list);
+    for (GSList *l = list; l != NULL; l = l->next)
+    {
+        GFile* file = l->data;
+        const gchar *path = g_file_get_path (file);
+        add_music_to_list(
+            user_data, 
+            path, 
+            play_selected_music);
     }
-    else if (G_VALUE_HOLDS(value, G_TYPE_STRING)) {
-        const gchar *uri = g_value_get_string(value);
-        GFile *file = g_file_new_for_path(uri);
-        gchar *path = g_file_get_path(file);
-        g_object_unref(file);
-
-        if (!path) {
-            g_print("Caminho do arquivo é nulo\n");
-            return FALSE;
-        }
-        gchar *path_copy = g_strdup(path);
-        g_free(path);
-
-        char *token = strtok(path_copy, "\n");
-        if (token) {
-            size_t count = 0;
-            while (token != NULL) {
-                GFile *music_file = g_file_new_for_path(token);
-                const gchar *music_uri = g_file_get_uri(music_file);
-                add_music_to_list(user_data, token, music_uri, music_file, play_selected_music);
-                g_object_unref(music_file);
-                token = strtok(NULL, "\n");
-                ++count;
-            }
-            g_free(path_copy);
-            return TRUE;
-        } else {
-            file = g_file_new_for_path(path_copy);
-            uri = g_file_get_uri(file);
-            add_music_to_list(user_data, path_copy, uri, file, play_selected_music);
-            g_object_unref(file);
-            g_free(path_copy);
-            return TRUE;
-        }
-    }else {
-        g_print("Tipo de dado não suportado\n");
-        return FALSE;
-    }
+    return TRUE;
 }
+
+
 
 void on_window_destroy(GtkWidget *widget, gpointer user_data) {
     static GMutex mutex;
@@ -282,10 +249,166 @@ void on_window_destroy(GtkWidget *widget, gpointer user_data) {
 }
 
 gboolean on_clicked_progess_bar(
-    GtkRange* self,
-    GtkScrollType* scroll,
-    gdouble value,
-    gpointer user_data
+    GtkRange*       self,
+    GtkScrollType*  scroll,
+    gdouble         value,
+    gpointer        user_data
 ){
     return TRUE;
+}
+
+
+
+static void
+on_audio_link_changed (
+    GFileMonitor       *monitor,
+    GFile              *file,
+    GFile              *other_file,
+    GFileMonitorEvent  event_type,
+    gpointer           user_data
+)
+{
+    WidgetsData *wd = (WidgetsData *)user_data;
+    if (!(event_type == G_FILE_MONITOR_EVENT_DELETED ||
+          event_type == G_FILE_MONITOR_EVENT_ATTRIBUTE_CHANGED))
+        return;
+
+    GtkListBox *list_box = GTK_LIST_BOX (wd->list_box);
+    if (!list_box) return;
+
+    g_autofree gchar *changed_name = g_file_get_basename (file);
+
+    for (GtkWidget *row = gtk_widget_get_first_child (GTK_WIDGET(list_box));
+         row != NULL;
+         row = gtk_widget_get_next_sibling (row))
+    {
+        GtkWidget *row_box = gtk_widget_get_first_child (row);
+        if (!GTK_IS_BOX (row_box))
+            continue;
+        GtkWidget *label = gtk_widget_get_first_child (row_box);
+        if (!GTK_IS_LABEL (label))
+            continue;
+        const gchar *label_text = gtk_label_get_text (GTK_LABEL(label));
+        g_debug ("comparing %s with %s", label_text, changed_name);
+        if (g_strcmp0 (label_text, changed_name) == 0) {
+            g_message ("removing %s", changed_name);
+            gtk_list_box_remove (list_box, row);
+            break;
+        }
+    }
+}
+
+void monitor_audio_dir_linkfiles(
+    const gchar     *audio_link_dir,
+    gpointer        user_data
+)
+{
+    GFile *audio_link = g_file_new_for_path(audio_link_dir);
+    GError *error = NULL;
+    GFileMonitor *monitor = g_file_monitor_directory(
+        audio_link,
+        G_FILE_MONITOR_NONE,
+        NULL,
+        &error
+    );
+    
+    if(!monitor){
+        log_error("Error creating monitor: %s", error->message);
+        g_error_free(error);
+        g_object_unref(audio_link);
+        return;
+    }
+
+    g_signal_connect(
+        monitor,
+        "changed",
+        G_CALLBACK(on_audio_link_changed),
+        user_data        
+    );
+    g_object_unref(audio_link);
+}
+
+static void
+on_audio_dir_changed (
+    GFileMonitor       *monitor,
+    GFile              *file,
+    GFile              *other_file,
+    GFileMonitorEvent  event_type,
+    gpointer           user_data
+)
+{
+    if (!(event_type == G_FILE_MONITOR_EVENT_DELETED ||
+          event_type == G_FILE_MONITOR_EVENT_ATTRIBUTE_CHANGED))
+            return;
+    
+    WidgetsData *wd = (WidgetsData *)user_data;
+
+    if(!wd) return;
+
+    GtkListBox *list_box = GTK_LIST_BOX (wd->list_box);
+    if (!list_box) return;
+
+    gtk_list_box_remove_all(list_box);
+    
+    
+    log_command(
+        "Looks like audio dir changed, creating new audio dir: %s",
+        SYM_AUDIO_DIR
+    );
+
+    run_subprocess_async(
+        g_strdup_printf(
+            "mkdir -p %s",
+            SYM_AUDIO_DIR
+        ),
+        NULL,
+        NULL
+    );
+    const gchar *path = g_object_get_data(G_OBJECT(monitor), "path_dir");
+    if(!path) {
+        log_error("Path not found at on_audio_dir_changed");
+    } else{
+        monitor_audio_dir(path, user_data);
+    }
+    g_signal_handlers_disconnect_by_func(
+        monitor,
+        G_CALLBACK(on_audio_dir_changed),
+        user_data
+    );
+    g_object_unref(monitor);
+}
+
+void monitor_audio_dir(
+    const gchar     *audio_dir,
+    gpointer        user_data
+)
+{
+    GFile *audio_dir_file = g_file_new_for_path(audio_dir);
+    GError *error = NULL;
+    GFileMonitor *monitor = g_file_monitor_directory(
+        audio_dir_file,
+        G_FILE_MONITOR_NONE,
+        NULL,
+        &error
+    );
+    
+    if(!monitor){
+        log_error("Error creating monitor: %s", error->message);
+        g_error_free(error);
+        g_object_unref(audio_dir_file);
+        return;
+    }
+
+    g_signal_connect(
+        monitor,
+        "changed",
+        G_CALLBACK(on_audio_dir_changed),
+        user_data        
+    );
+    g_object_set_data(
+        G_OBJECT(monitor),
+        "path_dir",
+        (gpointer)audio_dir
+    );
+    g_object_unref(audio_dir_file);
 }

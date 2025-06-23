@@ -1,4 +1,6 @@
 #include "audio_devices.h"
+#include <ctype.h>
+#include "utils.h"
 
 char** get_command_output(const char* command){
     FILE *pipe = popen(command, "r");

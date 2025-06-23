@@ -1,38 +1,26 @@
 #include <gtk/gtk.h>
 #include "audio.h"
-#include "gio/gio.h"
-#include "glib-object.h"
-#include "glib.h"
-#include "gtk/gtkshortcut.h"
-#include "src/e_widgets.h"
+#include "e_logs.h"
 #include "src/ewindows.h"
+#include "src/e_widgets.h"
 #include "locale.h"
 #include "src/widget_properties.h"
 #include "adwaita.h"
 #include "src/widgets_devices.h"
 #include "src/utils.h"
+#include "constants.h"
+#include "src/e_commandw.h"
 
-void on_activate(GtkApplication *app, gpointer user_data) {
-    AdwApplicationWindow *window = ADW_APPLICATION_WINDOW(adw_application_window_new(app));
-    gchar *title;
-    #ifdef __linux__
-        #include <stdlib.h>
-        const char* sessions_names[] = {"i3", "hyprland", "sway", NULL};
-        const char *session_name = getenv("DESKTOP_SESSION");
-        for (int i = 0; sessions_names[i]; i++) {
-            if (strcmp(sessions_names[i], session_name) == 0) {
-                title = "Background";
-                break;
-            }
-        }
-        if (title == NULL) {
-            title = "Euteran";
-        }
-    #else
-        title = "Euteran";
-    #endif
-    gtk_window_set_title(GTK_WINDOW(window), title);
-    gtk_window_set_default_size(GTK_WINDOW(window), 600, 400); 
+static void 
+on_activate
+(
+    AdwApplication *app, 
+    gpointer user_data
+) 
+{
+    GtkWidget *window = adw_application_window_new(GTK_APPLICATION(app));
+    gtk_window_set_title(GTK_WINDOW(window), "Euteran");
+    gtk_window_set_resizable(GTK_WINDOW(window), TRUE);
     gtk_widget_add_css_class(GTK_WIDGET(window), "main_window_class");
 
 
@@ -45,7 +33,7 @@ void on_activate(GtkApplication *app, gpointer user_data) {
 
     GtkWidget *main_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
     gtk_widget_add_css_class(main_box, "main_box");
-    adw_application_window_set_content(window, main_box);
+    adw_application_window_set_content(ADW_APPLICATION_WINDOW(window), main_box);
 
     AdwHeaderBar *header_bar = ADW_HEADER_BAR(adw_header_bar_new());
     gtk_widget_add_css_class(GTK_WIDGET(header_bar), "header_bar");
@@ -54,17 +42,23 @@ void on_activate(GtkApplication *app, gpointer user_data) {
     gtk_box_append(GTK_BOX(main_box), GTK_WIDGET(header_bar));
 
     GtkWidget *menu_button = gtk_menu_button_new();
-    gtk_menu_button_set_label(GTK_MENU_BUTTON(menu_button), "Options");
+    gtk_widget_add_css_class(GTK_WIDGET(menu_button), "menu_button");
+    gtk_menu_button_set_icon_name(GTK_MENU_BUTTON(menu_button), "document-properties-symbolic");
+    gtk_menu_button_set_can_shrink(GTK_MENU_BUTTON(menu_button), FALSE);
     adw_header_bar_pack_start(header_bar, menu_button);
 
     GtkWidget *popover = gtk_popover_new();
     gtk_popover_set_has_arrow(GTK_POPOVER(popover), FALSE);
+    gtk_widget_set_halign(GTK_WIDGET(popover), GTK_ALIGN_CENTER);
+    gtk_widget_set_size_request(GTK_WIDGET(popover), 30, 30);
     gtk_menu_button_set_popover(GTK_MENU_BUTTON(menu_button), popover);
     // gtk_widget_add_css_class(popover, "popover");
 
     GtkWidget *popover_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
     gtk_popover_set_child(GTK_POPOVER(popover), popover_box);
     // gtk_widget_add_css_class(popover_box, "popover_box");
+
+    g_object_set_data(G_OBJECT(window), "menu_button_popover", menu_button);
 
     const char* popover_names[] = {"Select Folder", "Bindings", "Devices", NULL};
     for (int i = 0; popover_names[i]; i++) {
@@ -74,11 +68,11 @@ void on_activate(GtkApplication *app, gpointer user_data) {
         gtk_box_append(GTK_BOX(popover_box), button);
 
         if (strcmp(popover_names[i], "Select Folder") == 0) {
-            g_signal_connect(button, "clicked", G_CALLBACK(select_folder), window);
-            gtk_popover_set_autohide(GTK_POPOVER(popover), TRUE);
+            g_signal_connect(button, "clicked", G_CALLBACK(select_folder),window);
         } else if (strcmp(popover_names[i], "Devices") == 0) {
             g_signal_connect(button, "clicked", G_CALLBACK(construct_widget), window);
-            gtk_popover_set_autohide(GTK_POPOVER(popover), TRUE);
+        } else if (strcmp(popover_names[i], "Bindings") == 0){
+            gtk_popover_popdown(GTK_POPOVER(popover));
         }
     }
 
@@ -89,6 +83,8 @@ void on_activate(GtkApplication *app, gpointer user_data) {
         g_object_unref(css_file);
         return;
     }
+
+
 
     GtkWidget *music_display_content = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);
     gtk_widget_set_halign(music_display_content, GTK_ALIGN_BASELINE_FILL);
@@ -128,29 +124,34 @@ void on_activate(GtkApplication *app, gpointer user_data) {
     gtk_widget_set_vexpand(music_holder_box, TRUE);
     gtk_widget_add_css_class(music_holder_box, "music_holder_box");
     
-    GtkDropTarget *target =
-      gtk_drop_target_new (G_TYPE_INVALID, GDK_ACTION_COPY);
 
-      gtk_drop_target_set_gtypes (target, (GType [2]) {
-        G_TYPE_STRING,
-        G_TYPE_FILE,
-      }, 2);
+    GtkDropTarget *target = gtk_drop_target_new (G_TYPE_INVALID, GDK_ACTION_COPY);
+    gtk_drop_target_set_gtypes (target, (GType[1]) { GDK_TYPE_FILE_LIST, }, 1);
+    g_signal_connect(target, "drop", G_CALLBACK (on_drop), widgets_data);
+    gtk_widget_add_controller (GTK_WIDGET (window), GTK_EVENT_CONTROLLER (target));
+    
 
-    g_signal_connect(target, "drop", G_CALLBACK(on_drop), widgets_data);
-    gtk_widget_add_controller(GTK_WIDGET(music_holder_box), GTK_EVENT_CONTROLLER(target));
-
-   
-    GtkWidget *tag_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);
+    GtkWidget *tag_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);
     gtk_widget_add_css_class(tag_box, "tag_box");
     GtkWidget *tag_label_name = gtk_label_new("Music Name");
     gtk_widget_add_css_class(tag_label_name, "tag_label_name");
     gtk_widget_set_hexpand(tag_label_name, TRUE);
     gtk_box_append(GTK_BOX(tag_box), tag_label_name);
     GtkWidget *tag_label_duration = gtk_label_new("Duration");
-    gtk_widget_set_margin_end(tag_label_duration, 7);
+    gtk_widget_set_margin_end(tag_label_duration, 20);
     gtk_widget_add_css_class(tag_label_duration, "tag_label_duration");
     gtk_box_append(GTK_BOX(tag_box), tag_label_duration);
     gtk_box_append(GTK_BOX(music_holder_box), tag_box);
+
+    GtkWidget *horizontal_separator = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+    gtk_widget_set_margin_start(horizontal_separator, 10);
+    gtk_widget_set_margin_end(horizontal_separator, 10);
+    gtk_widget_set_hexpand(horizontal_separator, TRUE);
+    gtk_widget_set_halign(horizontal_separator, GTK_ALIGN_FILL);
+    gtk_widget_set_size_request(horizontal_separator, -1, 1);
+    gtk_widget_add_css_class(horizontal_separator, "line_class");
+
+    gtk_box_append(GTK_BOX(music_holder_box), horizontal_separator);
 
     GtkWidget *list_box = gtk_list_box_new();
     gtk_list_box_set_selection_mode(GTK_LIST_BOX(list_box), GTK_SELECTION_BROWSE);
@@ -158,31 +159,23 @@ void on_activate(GtkApplication *app, gpointer user_data) {
     widgets_data->list_box = list_box;
     gtk_box_append(GTK_BOX(music_holder_box), list_box);
 
-    
-
     AdwPreferencesGroup *prefs_group = ADW_PREFERENCES_GROUP(adw_preferences_group_new());
     gtk_widget_add_css_class(GTK_WIDGET(prefs_group), "prefs_group");
     adw_preferences_group_add(prefs_group, music_holder_box);
     gtk_box_append(GTK_BOX(main_box), GTK_WIDGET(prefs_group));
 
-    // AdwBreakpoint *breakpoint = adw_breakpoint_new(
-    //     adw_breakpoint_condition_parse("max-width: 600px")
-    // );
-    // adw_breakpoint_add_setter(breakpoint, G_OBJECT(clamp), "maximum-size", (GValue *)g_variant_new_int32(400));
-    // adw_application_window_add_breakpoint(window, breakpoint);
-
-    // Store data
     g_object_set_data(G_OBJECT(window), "play_selected_music", (gpointer)play_selected_music);
     g_object_set_data(G_OBJECT(window), "widgets_data", widgets_data);
     g_object_set_data(G_OBJECT(window), "music_holder", music_holder_box);
 
     if (g_file_test(SYM_AUDIO_DIR, G_FILE_TEST_EXISTS)) {
-        g_print(CYAN_COLOR "[INFO] Pasta ja existe\n" RESET_COLOR);
-        g_print(GREEN_COLOR "[COMMAND] Examinando folder..\n" RESET_COLOR);
-        system("sh src/sh/brokenlinks.sh");
+        log_message("folder já existe");
+        log_command("Examinando folder...");
+        run_subprocess_async("sh src/sh/brokenlinks.sh", NULL, NULL);
+
     } else {
         g_mkdir_with_parents(SYM_AUDIO_DIR, 0777);
-        g_print(GREEN_COLOR "[COMMAND] Pasta criada\n" RESET_COLOR);
+        log_command("Pasta criada com sucesso");
     }
     create_music_list(SYM_AUDIO_DIR, widgets_data, music_holder_box, play_selected_music);
 
@@ -195,15 +188,18 @@ void on_activate(GtkApplication *app, gpointer user_data) {
     g_object_unref(provider);
     g_object_unref(css_file);
 
+    monitor_audio_dir_linkfiles(SYM_AUDIO_DIR, widgets_data);
+    monitor_audio_dir(SYM_AUDIO_DIR, widgets_data);
+
     gtk_widget_set_visible(GTK_WIDGET(window), TRUE);
 }
 
 
 int main(int argc, char *argv[]) {
-    setlocale(LC_ALL, "en_US.UTF-8");
-    // setenv("GTK_THEME", "Catppuccin-Mocha", 1);
     set_last_volume(get_volume_from_settings());
-    GtkApplication *app = gtk_application_new("org.gtk.example", G_APPLICATION_DEFAULT_FLAGS);
+    adw_init();
+    AdwApplication *app = adw_application_new("com.deyvis2k.Euteran", G_APPLICATION_DEFAULT_FLAGS);
+
     g_signal_connect(app, "activate", G_CALLBACK(on_activate), NULL);
     int status = g_application_run(G_APPLICATION(app), argc, argv);
 
@@ -212,6 +208,7 @@ int main(int argc, char *argv[]) {
         g_object_unref(current_cancellable);
         g_object_unref(current_task);
     }
+
     g_object_unref(app);
     return status;
 }

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
-project(main C)
+project(Euteran C)
 
 set(CMAKE_C_COMPILER "gcc")
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
@@ -40,7 +40,9 @@ if(UNIX AND NOT APPLE)
         src/utils.c
         src/ewindows.c
         src/e_widgets.c
+        src/e_logs.c
         src/audio_devices.c
+        src/e_commandw.c
         src/widgets_devices.c
         src/widget_properties.c
         src/ogg/stb_vorbis.c
@@ -53,9 +55,9 @@ elseif(WIN32)
     )
 endif()
 
-add_executable(main ${SOURCES})
+add_executable(Euteran ${SOURCES})
 
-target_link_libraries(main
+target_link_libraries(Euteran
     ${GTK_LIBRARIES}
     ${ADWAITA_LIBRARIES}
     ${MPG123_LIBRARIES}
@@ -63,15 +65,15 @@ target_link_libraries(main
 )
 
 if(WIN32)
-    target_link_libraries(main ${PORTAUDIO_LIBRARIES})
-    target_compile_options(main PRIVATE ${PORTAUDIO_CFLAGS})
+    target_link_libraries(Euteran ${PORTAUDIO_LIBRARIES})
+    target_compile_options(Euteran PRIVATE ${PORTAUDIO_CFLAGS})
 
 elseif(UNIX AND NOT APPLE)
-    target_link_libraries(main ${PIPEWIRE_LIBRARIES} ${XCB_LIBRARIES})
-    target_compile_options(main PRIVATE ${PIPEWIRE_CFLAGS} ${XCB_CFLAGS})
+    target_link_libraries(Euteran ${PIPEWIRE_LIBRARIES} ${XCB_LIBRARIES})
+    target_compile_options(Euteran PRIVATE ${PIPEWIRE_CFLAGS} ${XCB_CFLAGS})
 endif()
 
-target_compile_options(main PRIVATE ${GTK_CFLAGS} ${ADWAITA_CFLAGS} ${MPG123_CFLAGS})
+target_compile_options(Euteran PRIVATE ${GTK_CFLAGS} ${ADWAITA_CFLAGS} ${MPG123_CFLAGS})
 
 add_custom_target(copy_style ALL
     COMMAND ${CMAKE_COMMAND} -E copy_directory
@@ -79,6 +81,6 @@ add_custom_target(copy_style ALL
     ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/Style
 )
 
-add_dependencies(main copy_style)
+add_dependencies(Euteran copy_style)
 
 

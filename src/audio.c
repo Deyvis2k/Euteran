@@ -3,8 +3,8 @@
 #include "pipewire/keys.h"
 #include "pipewire/stream.h"
 #include <mpg123.h>
-#include <gio/gio.h>
-#include "constants.h"
+#include <spa/param/audio/format-utils.h>
+#include "e_logs.h"
 
 static GMutex paused_mutex;
 static gboolean paused = FALSE;
@@ -40,7 +40,7 @@ static void on_process(void *userdata) {
     g_mutex_unlock(&paused_mutex);
 
     if (g_cancellable_is_cancelled(data->cancellable) && !data->loop_stopped) {
-        printf(YELLOW_COLOR "[INFO] Cancelando áudio, aguarde...\n" RESET_COLOR);
+        log_info("Cancelando áudio, aguarde...");
         data->loop_stopped = TRUE;
         pw_main_loop_quit(data->loop);
         return;
@@ -129,7 +129,7 @@ double get_duration_ogg(const char *music_path){
     double duration = 0;
     stb_vorbis *f = stb_vorbis_open_filename(music_path, &error, NULL);
     if(!f){
-        printf("Error: %d\n", error);
+        log_error("Erro ao abrir o arquivo OGG: %d", error);
         return 0;
     }
     duration = stb_vorbis_stream_length_in_seconds(f);
@@ -166,7 +166,7 @@ void play_audio(const char *musicfile, volume_data *volume, GCancellable *cancel
         mpg123_init();
         data.mpg = mpg123_new(NULL, &err);
         if (!data.mpg || mpg123_open(data.mpg, musicfile) != MPG123_OK) {
-            printf("Erro ao abrir o arquivo MP3: %s\n", data.mpg ? mpg123_strerror(data.mpg) : "mpg123_new falhou");
+            log_error("Erro ao abrir o arquivo MP3: %s", data.mpg ? mpg123_strerror(data.mpg) : "mpg123_new falhou");
             if (data.mpg) {
                 mpg123_delete(data.mpg);
             }
@@ -212,17 +212,17 @@ void play_audio(const char *musicfile, volume_data *volume, GCancellable *cancel
                           PW_ID_ANY,
                           PW_STREAM_FLAG_AUTOCONNECT | PW_STREAM_FLAG_MAP_BUFFERS | PW_STREAM_FLAG_RT_PROCESS,
                           params, 1) != 0) {
-        printf("Erro ao conectar o stream\n");
+        log_error("Erro ao conectar o stream");
         goto cleanup;
     }
 
     if (cancellable && g_cancellable_is_cancelled(cancellable)) {
-        printf("Cancelado antes de tocar o áudio\n");
+        log_info("Cancelado antes de tocar o áudio");
         goto cleanup;
     }
 
     pw_stream_set_active(data.stream, !(*paused));
-    printf(YELLOW_COLOR "[INFO] Tocando áudio...\n" RESET_COLOR);
+    log_info("Tocando áudio...");
     pw_main_loop_run(data.loop);
 
 cleanup:

@@ -1,16 +1,7 @@
-#include "audio.h"
-
-#ifndef WIDGET_PROPERTIES
-#define WIDGET_PROPERTIES
+#pragma once
 
 #include <gtk/gtk.h>
-#include <gdk/gdk.h>
-#include "gio/gio.h"
-#include "glib-object.h"
-#include "glib.h"
-#include "e_widgets.h"
-#include "constants.h"
-
+#include "audio.h"
 
 
 static GTask *current_task = NULL;
@@ -41,6 +32,8 @@ gboolean update_progress_bar(gpointer user_data);
 gboolean pause_audio(GtkWidget *button, gpointer user_data);
 void play_selected_music(GtkListBox *box, GtkListBoxRow *row, gpointer user_data);
 
-
-
-#endif
+void 
+monitor_audio_dir_linkfiles(
+    const gchar *dir,
+    gpointer user_data
+);

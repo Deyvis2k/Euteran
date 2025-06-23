@@ -1,13 +1,8 @@
-#ifndef AUDIO_H
-#define AUDIO_H
-#include "pipewire/main-loop.h"
+#pragma once
+
 #include <mpg123.h>  
-#include <stdio.h>
-#include <stdlib.h>
-#include <gio/gio.h>
 #include <gtk/gtk.h>
 #include "ogg/stb_vorbis.h"
-#include <spa/param/audio/format-utils.h>
 #include <pipewire/pipewire.h>
 
 #define DEFAULT_RATE      44100
@@ -53,4 +48,3 @@ double get_duration(const char *music_path);
 double get_duration_ogg(const char *music_path);
 void play_audio(const char *musicfile, volume_data *volume, GCancellable *cancellable, gboolean *paused, GtkWidget *parent);
 
-#endif

@@ -1,10 +1,6 @@
-#ifndef AUDIO_DEVICES_H
-#define AUDIO_DEVICES_H
+#pragma once
+
 #include <stdio.h>
-#include <ctype.h>
-#include "utils.h"
-#include <stdlib.h>
-#include <string.h>
 
 struct audio_device{
     char* node_description;
@@ -23,4 +19,3 @@ struct audio_devices{
 struct audio_device** get_audio_devices(const char* command);
 char** get_command_output(const char* command);
 
-#endif

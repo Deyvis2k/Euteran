@@ -18,10 +18,6 @@
 
 
 
-/* .selected_music_class{ */
-/*     border: 0.3px ridge floralwhite; */
-/* } */
-
 .header_bar{
     background-color: rgba(48,48,48,0.02);
     border: none;
@@ -79,12 +75,6 @@
 
 .header_bar windowcontrols.end button{
     background-color: rgba(48,48,48,0.02);
-    /* outline-color: transparent; */
-    /* border: none; */
-    /* box-shadow: none; */
-    /* border-color: transparent; */
-    /* caret-color: transparent; */
-    /* outline-color: transparent; */
 }
 
 .header_bar windowcontrols.end{
@@ -108,8 +98,6 @@
 }
 
 .popover_button{
-    /* box-shadow: none; */
-    /* background-color: var(--rosewater); */
     color: floralwhite;
     font-size: 10px;
     font-family: "JetbrainsMono Nerd Font";
@@ -130,8 +118,6 @@
 
 .popover contents{
     box-shadow: none;
-    /* border: none; */
-    /* background-color: transparent; */
 }
 .popover arrows{
     border: none;
@@ -141,7 +127,6 @@
 .popover_box{
     box-shadow: none;
     border: none;
-    /* background-color: transparent; */
 }
 
 .music_display_content_class{
@@ -151,55 +136,8 @@
 
 }
 
-.music_name_label{
-    /* background-color: transparent; */
-    border-left: 0.15mm ridge floralwhite;
-    border-left-style:double;
-}
-
-.menu_button{
-    margin: 5px;
-    font-size: 10px;
-    text-shadow: none;
-    background-color: rgba(48,48,48,0.2);
-    outline-color: transparent;
-    box-shadow: none;
-}
-
-.menu_button button.toggle:hover{
-    font-size: 10px;
-    margin: 5px;
-    border: 0.5px rigde var(--rosewater);
-    background-color: transparent;
-    outline-color: transparent;
-    box-shadow: none;
-}
-
-.menu_button button.toggle{
-    font-size: 10px;
-    margin: 5px;
-    border: 0.5px solid var(--overlay-0);
-    background-color: transparent;
-    outline-color: transparent;
-    box-shadow: none;
-}
-
-.menu_button:hover{
-    margin: 5px;
-    font-size: 10px;
-    outline-color: transparent;
-    box-shadow: none;
-    text-shadow: none;
-}
-
-
-.menu_button button.toggle content{
-    font-size: 10px;
-    margin: 5px;
-    border: 0.5px solid var(--overlay-0);
-    background-color: transparent;
-    outline-color: transparent;
-    box-shadow: none;
+.menu_button .image-button{
+    color: rgba(190, 190, 190, 0.8);
 }
 
 .slider_main slider{
@@ -231,8 +169,6 @@
 }
 
 .slider_main highlight{
-    /* background-color: var(--purple); */
-    /* background-image: none; */
     box-shadow: none;
     border-radius: 0px;
     margin: -7px;
@@ -243,23 +179,19 @@
     transition-property: all;
 }
 
-.tag_box {
-    border-bottom: 0.3px ridge floralwhite;
-}
-
 .list_box{
     color: white;
-    font-family: "JetBrains Mono NerdFont";
+    font-family: "JetbrainsMono Nerd Font";
     font-style: italic;
+    font-kerning: normal;
+    font-stretch: normal;
+    line-height: 0.95;
+    font-weight: normal;
     font-size: 16px;
     background-color: rgba(48,48,48,0.01);
     box-shadow: none;
-    /* border: 0.3px ridge floralwhite; */
 }
 
-/*when not selected */
-
-/* Estilo padrão, aplicado apenas quando NÃO estiver hover ou selecionado */
 .list_box row.activatable:not(:hover):not(:selected) {
     background-color: rgba(48,48,48,0.01);
     box-shadow: none;
@@ -272,18 +204,9 @@
 
 
 
-.separator_class{
-    border: 0.1mm solid floralwhite;
-    background-color: rgba(48,48,48,0.3);
-}
-
 .music_holder_grid{
     border: 0.3px ridge floralwhite;
 }
-
-/* .music_holder_box{ */
-/*     background-color: red; */
-/* } */
 
 .music_button_class{
     background: transparent;
@@ -291,4 +214,11 @@
     font-size: 10px;
     border: none;
     box-shadow: none;
+}
+
+.label_devices_class{
+    color: dimgrey;
+    font-family: "JetbrainsMono Nerd Font";
+    font-size: 12px;
+    font-weight: bold;
 }

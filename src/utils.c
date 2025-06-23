@@ -1,15 +1,16 @@
 #include "utils.h"
 #include "audio.h"
 #include "constants.h"
-#include "gio/gio.h"
+#include "e_commandw.h"
+#include "e_logs.h"
 #include <dirent.h>
 #include <string.h>
 #include <stdlib.h>
 #include <math.h>
 #include <ctype.h>
 #include "constants.h"
+#include <sys/stat.h>
 
-#define ALLOWED_EXTENSION ".mp3"
 
 
 const double* seconds_to_minute(double music_duration) {
@@ -19,7 +20,7 @@ const double* seconds_to_minute(double music_duration) {
 
     double *result = (double*) malloc(2 * sizeof(double));
     if(result == NULL){
-        fprintf(stderr, "Error allocating memory\n");
+        log_error("Error allocating memory");
         exit(1);
     }
 
@@ -35,13 +36,13 @@ double get_duration_from_file(const char *file) {
 
 char *cast_simple_double_to_string(double value) {
     if (value < 0){
-        fprintf(stderr, "Error allocating memory in value\n");
+        log_error("Value cannot be negative");
         return NULL;
     }
 
     char* buffer = malloc(10);  
     if (!buffer){
-        fprintf(stderr, "Error allocating memory\n");
+        log_error("Error allocating memory");
         return NULL;
     }
 
@@ -52,13 +53,13 @@ char *cast_simple_double_to_string(double value) {
 
 char* cast_double_to_string(double value) {
     if (value < 0){
-        fprintf(stderr, "Error allocating memory in value\n");
+        log_error("Value cannot be negative");
         return NULL;
     }
 
     char* buffer = malloc(10);  
     if (!buffer){
-        fprintf(stderr, "Error allocating memory\n");
+        log_error("Error allocating memory");
         return NULL;
     }
 
@@ -66,7 +67,7 @@ char* cast_double_to_string(double value) {
         const double* time_values = seconds_to_minute(value);
         if (!time_values) {
             free(buffer);
-            fprintf(stderr, "Error allocating memory in time_values\n");
+            log_error("Cannot get time values");
             return NULL;
         }
         double h = 0;
@@ -117,7 +118,6 @@ music_list_t list_files_musics(const char* dir) {
         if (ep->d_type == DT_DIR || ep->d_name[0] == '.') {
             continue;
         }
-        //if is .mp3 or .ogg
         if (strstr(ep->d_name, ALLOWED_EXTENSION) != NULL || strstr(ep->d_name, ".ogg") != NULL) {
             music_t* temp = realloc(musics, sizeof(music_t) * (total + 1));
             if (temp == NULL) {
@@ -168,7 +168,10 @@ GFile* get_file_from_path() {
         css_file = g_file_new_for_path("Style/style.css");
     } else {
         mkdir("Style", 0777);
-        system("touch Style/style.css");
+        // pid_t pid = fork();
+        // if (pid == 0) {
+            // execlp("touch", "touch", "Style/style.css", NULL);
+        run_subprocess_async("touch Style/style.css", NULL, NULL);
         css_file = g_file_new_for_path("Style/style.css");
     }
 
@@ -252,7 +255,7 @@ float get_volume_from_settings(){
     gchar *link_to_save = g_strdup_printf("%s/%s", CONFIGURATION_DIR, "current_settings.conf");
     FILE *file_to_read = fopen(link_to_save, "r");
     if(file_to_read == NULL){
-        g_print("Erro ao abrir o arquivo para leitura\n");
+        log_error("Erro ao abrir o arquivo para leitura");
         g_free(link_to_save);
         return 0.500f;
     }
