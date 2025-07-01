@@ -55,6 +55,9 @@ elseif(WIN32)
     )
 endif()
 
+
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g")
+
 add_executable(Euteran ${SOURCES})
 
 target_link_libraries(Euteran
@@ -82,5 +85,4 @@ add_custom_target(copy_style ALL
 )
 
 add_dependencies(Euteran copy_style)
-
 

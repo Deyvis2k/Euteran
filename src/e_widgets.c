@@ -5,8 +5,8 @@
 #include "glib.h"
 #include "gtk/gtk.h"
 #include "constants.h"
-#include "audio.h"
 #include "adwaita.h"
+#include "utils.h"
 
 #define _(s) (s)
 
@@ -154,10 +154,15 @@ void create_music_list(
     PlayMusicFunc   play_selected_music
 ) 
 {
-    if (!widgets_data || !GTK_IS_LIST_BOX(widgets_data->list_box)) {
+    
+    if (!widgets_data) {
         log_error("Widgets_data ou seus componentes são inválidos");
         return;
     }
+
+
+    GtkWidget *list_box = GET_WIDGET(widgets_data->widgets_list, LIST_BOX);
+    
 
     music_list_t new_music_list = list_files_musics(path);
     if (new_music_list.musics == NULL) {
@@ -166,7 +171,7 @@ void create_music_list(
     }
 
 
-    gtk_list_box_remove_all(GTK_LIST_BOX(widgets_data->list_box));
+    gtk_list_box_remove_all(GTK_LIST_BOX(list_box));
 
     for (size_t i = 0; i < new_music_list.count_size; i++) {
         if (new_music_list.musics[i].name == NULL) {
@@ -193,10 +198,10 @@ void create_music_list(
         
         EMusicContainer *music_container = g_new0(EMusicContainer, 1);
 
-        music_container->window_parent = widgets_data->window_parent;
+        music_container->window_parent = GET_WIDGET(widgets_data->widgets_list, WINDOW_PARENT);
         music_container->row = row;
         music_container->row_box = row_box;
-        music_container->list_box = widgets_data->list_box;
+        music_container->list_box = GET_WIDGET(widgets_data->widgets_list, LIST_BOX);
         
         gtk_widget_add_controller(music_container->row_box, GTK_EVENT_CONTROLLER(event_mouse));
         g_signal_connect(event_mouse, "pressed", G_CALLBACK(on_pressed_right_click_event), music_container);
@@ -226,7 +231,7 @@ void create_music_list(
         gtk_box_append(GTK_BOX(row_box), duration);
 
         gtk_list_box_row_set_child(GTK_LIST_BOX_ROW(row), row_box);
-        gtk_list_box_insert(GTK_LIST_BOX(widgets_data->list_box), row, (gint)i);
+        gtk_list_box_insert(GTK_LIST_BOX(GET_WIDGET(widgets_data->widgets_list, LIST_BOX)), row, (gint)i);
 
         g_object_set_data(G_OBJECT(row), "music_name", new_music_list.musics[i].name);
         g_object_set_data(G_OBJECT(row), "music_duration",
@@ -247,8 +252,8 @@ void create_music_list(
         free(new_music_list.musics);
     }
 
-    g_signal_handlers_disconnect_by_func(widgets_data->list_box, G_CALLBACK(play_selected_music), widgets_data);
-    g_signal_connect(widgets_data->list_box, "row-activated", G_CALLBACK(play_selected_music), widgets_data);
+    g_signal_handlers_disconnect_by_func(GET_WIDGET(widgets_data->widgets_list, LIST_BOX), G_CALLBACK(play_selected_music), widgets_data);
+    g_signal_connect(GET_WIDGET(widgets_data->widgets_list, LIST_BOX), "row-activated", G_CALLBACK(play_selected_music), widgets_data);
 }
 
 gboolean 
@@ -349,10 +354,10 @@ add_music_to_list(
     
     EMusicContainer *music_container = g_new0(EMusicContainer, 1);
 
-    music_container->window_parent = widgets_data->window_parent;
+    music_container->window_parent = GET_WIDGET(widgets_data->widgets_list, WINDOW_PARENT);
     music_container->row = row;
     music_container->row_box = row_box;
-    music_container->list_box = widgets_data->list_box;
+    music_container->list_box = GET_WIDGET(widgets_data->widgets_list, LIST_BOX);
     music_container->path = g_strconcat(SYM_AUDIO_DIR, FILENAME, NULL);
     
     gtk_widget_add_controller(music_container->row_box, GTK_EVENT_CONTROLLER(event_mouse));
@@ -382,7 +387,7 @@ add_music_to_list(
     gtk_box_append(GTK_BOX(row_box), duration);
 
     gtk_list_box_row_set_child(GTK_LIST_BOX_ROW(row), row_box);
-    gtk_list_box_insert(GTK_LIST_BOX(widgets_data->list_box), row, -1);
+    gtk_list_box_insert(GTK_LIST_BOX(GET_WIDGET(widgets_data->widgets_list, LIST_BOX)), row, -1);
 
     g_object_set_data(G_OBJECT(row), "music_name", g_strdup(path));
     g_object_set_data(G_OBJECT(row), "music_duration", cast_simple_double_to_string(duration_));

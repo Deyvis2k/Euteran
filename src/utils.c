@@ -1,5 +1,4 @@
 #include "utils.h"
-#include "audio.h"
 #include "constants.h"
 #include "e_commandw.h"
 #include "e_logs.h"
@@ -10,8 +9,8 @@
 #include <ctype.h>
 #include "constants.h"
 #include <sys/stat.h>
-
-
+#include "mpg123.h"
+#include "ogg/stb_vorbis.h"
 
 const double* seconds_to_minute(double music_duration) {
     int min = music_duration * MINUTE_CONVERT;
@@ -168,9 +167,6 @@ GFile* get_file_from_path() {
         css_file = g_file_new_for_path("Style/style.css");
     } else {
         mkdir("Style", 0777);
-        // pid_t pid = fork();
-        // if (pid == 0) {
-            // execlp("touch", "touch", "Style/style.css", NULL);
         run_subprocess_async("touch Style/style.css", NULL, NULL);
         css_file = g_file_new_for_path("Style/style.css");
     }
@@ -202,29 +198,53 @@ void remove_if_not_number(char* str){
     *write = '\0';
 }
 
-void trim(char* str) {
-    char* end;
-    while (isspace((unsigned char)*str)) str++;
-    if (*str == 0) return;
-    end = str + strlen(str) - 1;
-    while (end > str && isspace((unsigned char)*end)) end--;
-    end[1] = '\0';
+void trim(char *str) {
+    if (!str) return;
+    char *start = str;
+    while (isspace((unsigned char)*start)) start++;
+    char *end = start + strlen(start) - 1;
+    while (end > start && isspace((unsigned char)*end)) end--;
+    *(end + 1) = '\0';
+    if (start != str) memmove(str, start, end - start + 2);
+    if (!g_utf8_validate(str, -1, NULL)) {
+        log_warning("String após trim inválida em UTF-8: %s", str);
+    }
 }
 
 char* get_within_quotes(const char* str) {
-    const char* start = strchr(str, '"');  
-    if (!start) return NULL;
+    const char* start = strchr(str, '"');
+    if (!start) {
+        return NULL;
+    }
     start++;
 
-    const char* end = strchr(start, '"');  
-    if (!end) return NULL;
+    const char* end = strchr(start, '"');
+    if (!end) {
+        return NULL;
+    }
 
     size_t length = end - start;
     char* result = malloc(length + 1);
-    if (!result) return NULL;
+    if (!result) {
+        log_error("Falha ao alocar memória");
+        return NULL;
+    }
 
     strncpy(result, start, length);
     result[length] = '\0';
+
+    if (!g_utf8_validate(result, -1, NULL)) {
+        log_warning("String extraída inválida em UTF-8: %s", result);
+        gchar* converted = g_convert(result, -1, "UTF-8", "ISO-8859-1", NULL, NULL, NULL);
+        free(result);
+        if (converted) {
+            log_info("String convertida para UTF-8: %s", converted);
+            return converted;
+        } else {
+            log_warning("Falha ao converter string para UTF-8");
+            return g_strdup("[string inválida]");
+        }
+    }
 
     return result;
 }
@@ -242,7 +262,7 @@ void save_current_settings(float last_volume){
         g_free(link_to_save);
         return;
     }
-    fprintf(file_to_save, "last_volume = %f\n", get_last_volume());
+    fprintf(file_to_save, "last_volume = %f\n", last_volume);
     fclose(file_to_save);
     g_free(link_to_save);
 }
@@ -274,3 +294,70 @@ float get_volume_from_settings(){
     return 0.500f;
 }
 
+
+double get_duration(const char *music_path) {
+    mpg123_handle *mpg = NULL;
+    int err;
+    long rate;
+    int channels, encoding;
+    off_t frames;
+    double duration = 0;
+
+    mpg123_init();
+    mpg = mpg123_new(NULL, &err);
+    if (!mpg) {
+        log_error("Falha ao criar handle mpg123: %s", mpg123_plain_strerror(err));
+        return -1;
+    }
+
+    if (mpg123_open(mpg, music_path) != MPG123_OK) {
+        log_error("Erro ao abrir o arquivo MP3: %s", mpg123_strerror(mpg));
+        mpg123_delete(mpg);
+       
+        return -1;
+    }
+
+    mpg123_getformat(mpg, &rate, &channels, &encoding);
+    frames = mpg123_length(mpg);
+
+    if (frames > 0) {
+        duration = (double)frames / rate;
+    }
+
+    mpg123_close(mpg);
+    mpg123_delete(mpg);
+    return duration;
+}
+
+double get_duration_ogg(const char *music_path) {
+    if (!music_path || strlen(music_path) == 0) {
+        log_error("Caminho do arquivo OGG inválido");
+        return 0.0;
+    }
+
+    int error_ogg;
+    double duration = 0.0;
+#define GLIST_GET(type, list, index) ((type*)g_list_nth_data((list), (index)))
+    stb_vorbis *f = stb_vorbis_open_filename(music_path, &error_ogg, NULL);
+    if (!f) {
+        log_error("Erro ao abrir o arquivo OGG: %d", error_ogg);
+        return 0.0;
+    }
+
+    stb_vorbis_info info = stb_vorbis_get_info(f);
+    if (info.sample_rate <= 0) {
+        log_error("Informações inválidas do arquivo OGG");
+        stb_vorbis_close(f);
+        return 0.0;
+    }
+
+    duration = stb_vorbis_stream_length_in_seconds(f);
+    stb_vorbis_close(f);
+
+    if (duration <= 0.0) {
+        log_error("Duração inválida para o arquivo OGG: %f", duration);
+        return 0.0;
+    }
+
+    return duration;
+}

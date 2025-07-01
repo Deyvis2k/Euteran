@@ -1,6 +1,6 @@
 #pragma once
 
-#include <stdio.h>
+#include <gtk/gtk.h>
 
 struct audio_device{
     char* node_description;
@@ -9,13 +9,11 @@ struct audio_device{
 };
 
 struct audio_devices{
-    struct audio_device **sink;
-    struct audio_device **source;
-    size_t sink_count;
-    size_t source_count;
+    GList* audio_device_sink;
+    GList* audio_device_source;
 };
 
 
-struct audio_device** get_audio_devices(const char* command);
-char** get_command_output(const char* command);
+GList* get_audio_devices(const char* command);
+GList* get_command_output(const char* command);
 

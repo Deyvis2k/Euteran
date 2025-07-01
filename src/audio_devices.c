@@ -1,171 +1,93 @@
 #include "audio_devices.h"
-#include <ctype.h>
 #include "utils.h"
+#include <ctype.h>
+#include "e_logs.h"
 
-char** get_command_output(const char* command){
+GList* get_command_output(const char* command){
     FILE *pipe = popen(command, "r");
     if(pipe == NULL){
+        perror("popen");
         return NULL;
     }
+    GList *list = NULL;
 
-    size_t max_size = 1024;
-    char **output = malloc(max_size * sizeof(char*));
-    if(!output){
-        pclose(pipe);
-        return NULL;
+    char buffer[1024];
+    while(fgets(buffer, sizeof(buffer), pipe) != NULL){
+        if (isspace((unsigned char)buffer[strlen(buffer) - 1]))
+            buffer[strlen(buffer) - 1] = '\0';
+        list = g_list_append(list, g_strdup(buffer));
     }
 
-    size_t current_size = 0;
-    char buffer[max_size];
-
-    while(fgets(buffer, max_size, pipe) != NULL){
-        output[current_size] = malloc(strlen(buffer) + 1);
-        if(!output[current_size]){
-            for(size_t i = 0; i < current_size; i++){
-                free(output[i]);
-            }
-            free(output);
-            pclose(pipe);
-            return NULL;
-        }
-        strcpy(output[current_size], buffer);
-        if(isspace((unsigned char)buffer[strlen(buffer) - 1]))
-            output[current_size][strlen(buffer) - 1] = '\0';
-        current_size++;
-        if(current_size == max_size){
-            max_size *= 2;
-            char **temp = realloc(output, max_size * sizeof(char*));
-            if(!temp){
-                for(size_t i = 0; i < current_size; i++){
-                    free(output[i]);
-                }
-                free(output);
-                pclose(pipe);
-                return NULL;
-            }
-            output = temp;
-        }
-    }
-    output[current_size] = NULL;
     pclose(pipe);
-    return output;
+    return list;
 }
 
-
-
-struct audio_device** get_audio_devices(const char* command) {
-    char** output = get_command_output(command);
+GList* get_audio_devices(const char* command) {
+    GList* output = get_command_output(command);
     if (!output) {
         printf("Erro: get_command_output retornou NULL\n");
         return NULL;
     }
 
-    size_t max_items = 10;
-    struct audio_device** sinks = malloc(max_items * sizeof(struct audio_device*));
-    if (!sinks) {
-        printf("Erro: falha ao alocar sinks\n");
-        for (size_t i = 0; output[i] != NULL; i++) free(output[i]);
-        free(output);
-        return NULL;
-    }
+    GList *desired_list = NULL;
+    char *node_name = NULL;
+    char *node_description = NULL;
+    int id = -1;
 
-    size_t count = 0;
-    char* temp_description = NULL;
-    char* temp_name = NULL;
-    int temp_id = -1;
+    for (GList *node = output; node != NULL; node = node->next) {
+        trim((char*)node->data);
+        if (strstr(node->data, "node.description") != NULL) {
+            char *description_raw = get_within_quotes(strrchr((char*)node->data, ':'));
+            if (description_raw) {
+                if (g_utf8_validate(description_raw, -1, NULL)) {
+                    node_description = g_strdup(description_raw);
+                } else {
+                    gchar *converted = g_locale_to_utf8(description_raw, -1, NULL, NULL, NULL);
+                    if (converted || g_utf8_validate(converted, -1, NULL)) {
+                        node_description = converted;
+                    } else {
+                        log_warning("Falha ao converter descrição para UTF-8");
+                    }
+                }
+                free(description_raw);
+            }
+        } else if (strstr(node->data, "node.name") != NULL) {
+            char *name_raw = get_within_quotes(strrchr((char*)node->data, ':'));
+            if (name_raw) {
+                if (g_utf8_validate(name_raw, -1, NULL)) {
+                    node_name = g_strdup(name_raw);
+                } else {
+                    gchar *converted = g_locale_to_utf8(name_raw, -1, NULL, NULL, NULL);
+                    if (converted || g_utf8_validate(converted, -1, NULL)) {
+                        node_name = converted;
+                    } else {
+                        log_warning("Falha ao converter nome para UTF-8");
+                    }
+                }
+                free(name_raw);
+            }
 
-    for (size_t i = 0; output[i] != NULL; i++) {
-        trim(output[i]);
-        if (strstr(output[i], "node.description") != NULL) {
-            free(temp_description);
-            temp_description = get_within_quotes(strrchr(output[i], ':'));
-            if (temp_description) {
-                char* temp = strdup(temp_description);
-                temp_description = temp;
-            }
-        }
-        else if (strstr(output[i], "node.name") != NULL) {
-            free(temp_name);
-            temp_name = get_within_quotes(strrchr(output[i], ':'));
-            if (temp_name) {
-                char* temp = strdup(temp_name);
-                temp_name = temp;
-            }
-        }
-        else if (strstr(output[i], "object.id") != NULL) {
-            char* colon = strrchr(output[i], ':');
+        } else if (strstr(node->data, "object.id") != NULL) {
+            char* colon = strrchr((char*)node->data, ':');
             if (colon) {
                 colon++;
-                while (isspace((unsigned char)*colon)) colon++; 
-                temp_id = atoi(colon); 
-
-                if (temp_id != -1 && (temp_description || temp_name)) {
-                    if (count == max_items) {
-                        max_items *= 2;
-                        struct audio_device** temp_sinks = realloc(sinks, max_items * sizeof(struct audio_device*));
-                        if (!temp_sinks) {
-                            for (size_t j = 0; j < count; j++) {
-                                free(sinks[j]->node_name);
-                                free(sinks[j]->node_description);
-                                free(sinks[j]);
-                            }
-                            free(sinks);
-                            free(temp_description);
-                            free(temp_name);
-                            for (size_t j = 0; output[j] != NULL; j++) free(output[j]);
-                            free(output);
-                            return NULL;
-                        }
-                        sinks = temp_sinks;
-                    }
-
-                    struct audio_device* new_sink = malloc(sizeof(struct audio_device));
-                    if (!new_sink) {
-                        return NULL;
-                    }
-
-                    new_sink->id = temp_id;
-                    new_sink->node_description = temp_description ? strdup(temp_description) : NULL;
-                    new_sink->node_name = temp_name ? strdup(temp_name) : NULL;
-                    sinks[count++] = new_sink;
-
-                    temp_description = NULL;
-                    temp_name = NULL;
-                    temp_id = -1;
-                }
+                while (isspace((unsigned char)*colon)) colon++;
+                id = atoi(colon);
             }
         }
-    }
-
-    if (temp_id != -1 && (temp_description || temp_name)) {
-        if (count == max_items) {
-            max_items += 1;
-            struct audio_device** temp_sinks = realloc(sinks, max_items * sizeof(struct audio_device*));
-            if (!temp_sinks) {
-                return NULL;
-            }
-            sinks = temp_sinks;
+        if(id != -1 && node_name && node_description){
+            struct audio_device *audio_device = malloc(sizeof(struct audio_device));
+            audio_device->id = id;
+            audio_device->node_description = node_description ? g_strdup(node_description) : NULL;
+            audio_device->node_name = node_name ? g_strdup(node_name) : NULL;       
+            desired_list = g_list_append(desired_list, audio_device);
+            id = -1;
+            g_free(node_name);
+            g_free(node_description);
+            node_name = NULL;
+            node_description = NULL;
         }
-
-        struct audio_device* new_sink = malloc(sizeof(struct audio_device));
-        if (!new_sink) {
-            return NULL;
-        }
-
-        new_sink->id = temp_id;
-        new_sink->node_description = temp_description ? strdup(temp_description) : NULL;
-        new_sink->node_name = temp_name ? strdup(temp_name) : NULL;
-        sinks[count++] = new_sink;
-
-    } else {
-        free(temp_description);
-        free(temp_name);
     }
-
-    sinks[count] = NULL;
-
-    for (size_t i = 0; output[i] != NULL; i++) free(output[i]);
-    free(output);
-
-    return sinks;
+    g_list_free(output);
+    return desired_list;
 }

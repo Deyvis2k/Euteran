@@ -12,7 +12,6 @@ const char *level_color [LOG_COUNT] = {
     MAGENTA_COLOR, RED_COLOR, GREEN_COLOR, YELLOW_COLOR, BLUE_COLOR
 };
 
-
 void vlog_base(log_level_t lvl, const char *format, va_list ap)
 {
     char tstamp[9];               

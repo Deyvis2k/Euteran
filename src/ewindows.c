@@ -10,8 +10,6 @@
 #include "constants.h"
 #include "e_commandw.h"
 
-
-
 static void 
 on_command_done(
     GSubprocess     *proc, 

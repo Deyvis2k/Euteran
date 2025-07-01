@@ -5,3 +5,4 @@ build/
 Build/
 compile_commands.json
 *.txt
+new_core

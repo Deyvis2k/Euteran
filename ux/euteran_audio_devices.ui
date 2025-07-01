@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+    <requires lib="gtk" version="4.0"/>
+    <requires lib="Adw" version="1.0"/>
+    <object class="GtkWindow" id="Euteran-audio_window">
+        <property name="title">Euteran-Top</property>
+        <property name="resizable">True</property>
+        <property name="can-focus">True</property>
+        <style>
+            <class name="new_window_devices_class"/>
+        </style>
+        <child>
+            <object class="GtkBox" id="main_box">
+                <property name="orientation">vertical</property>
+                <property name="spacing">10</property>
+                <style>
+                    <class name="main_box"/>
+                </style>
+                <child>
+                    <object class="GtkLabel" id="sink_label">
+                        <property name="label">Sink</property>
+                        <property name="xalign">0</property>
+                        <property name="halign">start</property>
+                        <property name="margin_start">15</property>
+                        <property name="margin_top">30</property>
+                    </object>
+                </child>
+                <child>
+                    <object class="GtkBox" id="sink_section">
+                        <property name="orientation">vertical</property>
+                        <property name="margin-start">10</property>
+                        <property name="margin-end">10</property>
+                        <property name="hexpand">True</property>
+                        <property name="spacing">8</property>
+                        <child>
+                            <object class="GtkDropDown" id="sink_dropdown">
+                                <property name="hexpand">True</property>
+                                <property name="halign">start</property>
+                                <property name="width-request">300</property>
+                                <property name="model">
+                                    <object class="GtkStringList" id="sink_list"/>
+                                </property>
+                            </object>
+                        </child>
+                    </object>
+                </child>
+                <child>
+                    <object class="GtkLabel" id="source_label">
+                        <property name="label">Source</property>
+                        <property name="xalign">0</property>
+                        <property name="halign">start</property>
+                        <property name="margin_start">15</property>
+                    </object>
+                </child>
+                <child>
+                    <object class="GtkBox" id="source_section">
+                        <property name="orientation">vertical</property>
+                        <property name="margin-start">10</property>
+                        <property name="margin-end">10</property>
+                        <property name="spacing">8</property>
+                        <property name="hexpand">True</property>
+                        <property name="margin-bottom">10</property>
+                        <child>
+                            <object class="GtkDropDown" id="source_dropdown">
+                                <property name="hexpand">True</property>
+                                <property name="halign">start</property>
+                                <property name="width-request">300</property>
+                                <property name="model">
+                                    <object class="GtkStringList" id="source_list"/>
+                                </property>
+                            </object>
+                        </child>
+                    </object>
+                </child>
+                <child>
+                    <object class="AdwClamp" id="sink_clamp">
+                        <property name="maximum-size">600</property>
+                        <property name="margin-top">16</property>
+                        <child>
+                            <object class="GtkLabel" id="sink_box">
+                                <property name="label">
+Click on confirm to synchronize the sink and source 
+Note that this will create a new sink and source with the same name.
+                                </property>
+                                <property name="halign">center</property>
+                                <property name="justify">center</property>
+                                <property name="valign">center</property>
+                                <property name="wrap">True</property>
+                                <style>
+                                    <class name="label_devices_class"/>
+                                </style>
+                            </object>
+                        </child>
+                    </object>
+                </child>
+                <child>
+                    <object class="GtkButton" id="confirm_button">
+                        <property name="label">Confirm</property>
+                        <property name="halign">center</property>
+                        <property name="margin-top">5</property>
+                        <property name="margin-bottom">15</property>
+                    </object>
+                </child>
+            </object>
+        </child>
+    </object>
+</interface>
