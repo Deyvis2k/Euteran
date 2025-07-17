@@ -4,10 +4,17 @@
 #include "e_logs.h"
 #include "e_widgets.h"
 #include "constants.h"
+#include "euteran_main_object.h"
 #include "gio/gio.h"
 #include "glib.h"
 #include "gtk/gtk.h"
 #include "utils.h"
+#include "euteran_settings.h"
+
+typedef struct{
+    gboolean *delay_protect;
+    float timer_to_consume;
+} DelayData;
 
 void play_audio_task(
     GTask          *task,
@@ -16,7 +23,7 @@ void play_audio_task(
     GCancellable  *cancellable
 ) 
 {
-    AudioTaskData *data = (AudioTaskData *) g_task_get_task_data(task);
+    EuteranMainAudio *data = (EuteranMainAudio *) g_task_get_task_data(task);
     if (!data) {
         printf("Error: no filename\n");
         return;
@@ -25,168 +32,225 @@ void play_audio_task(
         printf("Error: no cancellable\n");
         return;
     }
-    play_audio(data, cancellable, &paused, data->widgets_data);
+    play_audio(data);
 }
 
 gboolean on_volume_changed(GtkRange *range, gpointer user_data) {
-    last_volume = gtk_range_get_value(GTK_RANGE(range));
+    EuteranSettings *current_settings_singleton = euteran_settings_get();
+    euteran_settings_set_last_volume(current_settings_singleton, gtk_range_get_value(range));
     return FALSE;
 }
 
 void on_task_completed(GObject *source_object, GAsyncResult *res, gpointer user_data) {
-    GTask *task = G_TASK(source_object);
-    if (G_IS_TASK(task)) {
+    GTask *task = G_TASK(res);
+    if (task != NULL && G_IS_TASK(task)) {
+        EuteranMainAudio *audio_data = g_task_get_task_data(task);
+        if(audio_data){
+            log_info("Começando limpeza de recursos.");
+            cleanup_process(audio_data);
+        }
         g_object_unref(task); 
+        task = NULL;
     }
     log_message("Task finalizada e recursos liberados.");
 }
 
-gboolean update_progress_bar(gpointer user_data) {
-    WidgetsData *data = (WidgetsData *)user_data;
-    GtkWidget *progress_bar = GET_WIDGET(data->widgets_list, PROGRESS_BAR);
-    if (!data || !GTK_IS_RANGE(progress_bar)) {
-        printf("Erro: falha ao executar update_progress_bar\n");
-        progress_timer_id = 0;
-        return G_SOURCE_REMOVE; 
+gboolean pause_audio(GtkWidget *button, gpointer user_data) {
+    EuteranMainObject *data = (EuteranMainObject *)user_data;
+    GtkWidget *window = GTK_WIDGET(euteran_main_object_get_widget_at(data, WINDOW_PARENT));
+
+    EuteranMainAudio *audio_data = g_task_get_task_data(current_task);
+    g_return_val_if_fail(audio_data != NULL, FALSE);
+
+    g_mutex_lock(&audio_data->paused_mutex);
+    audio_data->paused = !audio_data->paused;
+    g_mutex_unlock(&audio_data->paused_mutex);
+    if (audio_data->paused) {
+        g_timer_stop(euteran_main_object_get_timer(data));
+        gtk_button_set_icon_name(GTK_BUTTON(button), "media-playback-pause-symbolic");
+    } else {
+        g_timer_continue(euteran_main_object_get_timer(data));
+        gtk_button_set_icon_name(GTK_BUTTON(button), "media-playback-start-symbolic");
     }
-    if (data->elapsed_time >= data->music_duration) {
+
+    return FALSE;
+}
+
+gboolean interrupt_audio(GtkWidget *button, gpointer user_data) {
+    EuteranMainObject *data = (EuteranMainObject *)user_data;
+    GtkWidget *stop_button = GTK_WIDGET(euteran_main_object_get_widget_at(data, STOP_BUTTON));
+    if (!GTK_IS_BUTTON(stop_button)) return FALSE;
+
+    EuteranMainAudio *audio_data = g_task_get_task_data(current_task);
+    g_return_val_if_fail(audio_data != NULL, FALSE);
+
+    g_mutex_lock(&audio_data->paused_mutex);
+    audio_data->loop_stopped = TRUE;
+    g_mutex_unlock(&audio_data->paused_mutex);
+
+
+    GtkWidget *progress_bar = GTK_WIDGET(euteran_main_object_get_widget_at(data, PROGRESS_BAR));
+    if (GTK_IS_RANGE(progress_bar)) {
+        g_timer_stop(euteran_main_object_get_timer(data));
+        gtk_range_set_value(GTK_RANGE(progress_bar), 0);
+    }
+
+    return FALSE;
+}
+
+gboolean update_progress_bar(gpointer user_data) {
+    EuteranMainObject *wd = (EuteranMainObject *)user_data;
+    g_return_val_if_fail(
+        euteran_main_object_is_valid(wd),
+        G_SOURCE_REMOVE
+    );
+
+    GtkWidget *progress_bar = GTK_WIDGET(euteran_main_object_get_widget_at(wd, PROGRESS_BAR));
+    if (!GTK_IS_RANGE(progress_bar)) return G_SOURCE_REMOVE;
+    
+    GtkWidget *window = GTK_WIDGET(euteran_main_object_get_widget_at(wd, WINDOW_PARENT));
+    if (!GTK_IS_WINDOW(window)) return G_SOURCE_REMOVE;
+
+    EuteranMainAudio *audio_data = NULL;
+    if(current_task && G_IS_TASK(current_task)) 
+        audio_data = g_task_get_task_data(current_task);
+    else{
+        progress_timer_id = 0;
+        return G_SOURCE_REMOVE;
+    }
+        
+
+    if (!audio_data || !audio_data->stream || audio_data->loop_stopped) {
+        progress_timer_id = 0;
+        return G_SOURCE_REMOVE;
+    }
+
+    if (!audio_data->task_data) {
+        progress_timer_id = 0;
+        return G_SOURCE_REMOVE;
+    }
+
+    if (
+        (audio_data->task_data->audio_type == MP3 && !audio_data->mpg) ||
+        (audio_data->task_data->audio_type == OGG && !audio_data->vorbis)
+    ) {
+        progress_timer_id = 0;
+        return G_SOURCE_REMOVE;
+    }
+    GTimer *timer = euteran_main_object_get_timer(wd);
+    gdouble elapsed = g_timer_elapsed(timer, NULL) + euteran_main_object_get_offset_time(wd);
+
+    if (elapsed >= euteran_main_object_get_duration(wd)) {
         gtk_range_set_value(GTK_RANGE(progress_bar), 1.0);
         progress_timer_id = 0;
         return G_SOURCE_REMOVE;
     }
 
-    gdouble fraction = data->elapsed_time / data->music_duration;
+    gdouble fraction = elapsed / euteran_main_object_get_duration(wd);
     gtk_range_set_value(GTK_RANGE(progress_bar), fraction);
 
-    if(paused == FALSE)
-        data->elapsed_time += 0.1;
     return G_SOURCE_CONTINUE;
 }
 
+void 
+play_selected_music(
+    GtkListBox    *box, 
+    GtkListBoxRow *row, 
+    gpointer      user_data
+)
+{
+    g_return_if_fail(row != NULL && user_data != NULL);
 
-gboolean pause_audio(GtkWidget *button, gpointer user_data) {
-    WidgetsData *data = (WidgetsData *)user_data;
-    GtkWidget *window = GET_WIDGET(data->widgets_list, WINDOW_PARENT);
-
-    struct data *audio_data = g_object_get_data(G_OBJECT(window), "audio_data");
-    if (!audio_data) {
-        log_error("Audio data is NULL");
-        return FALSE;
-    } 
-    g_mutex_lock(&paused_mutex);
-    paused = !paused;
-    g_mutex_unlock(&paused_mutex);
-    if (paused) {
-        gtk_button_set_icon_name(GTK_BUTTON(button), "media-playback-pause");
-    } else {
-        gtk_button_set_icon_name(GTK_BUTTON(button), "media-playback-start");
-    }
-
-    return FALSE;
-}
-
-
-
-void play_selected_music(GtkListBox *box, GtkListBoxRow *row, gpointer user_data) {
-    if (row == NULL || user_data == NULL) {
-        printf("Erro: falha ao executar play_selected_music\n");
-        return;
-    }
-    
     GtkWidget *box_child = gtk_list_box_row_get_child(row);
     GtkWidget *label = gtk_widget_get_first_child(box_child);
-    if (!GTK_IS_LABEL(label)) {
-        printf("Erro: O primeiro widget do GtkBox não é um GtkLabel\n");
-        return;
-    }
+    GtkWidget *music_label = gtk_widget_get_last_child(box_child);
+    g_return_if_fail(GTK_IS_LABEL(label) && GTK_IS_LABEL(music_label));
 
     const char *filename = gtk_label_get_text(GTK_LABEL(label));
-    if (!filename || strlen(filename) == 0) {
-        printf("Erro: Nome da música inválido\n");
-        return;
-    }
-    
-    GtkWidget *music_label = gtk_widget_get_last_child(box_child);
-    if (!GTK_IS_LABEL(music_label)) {
-        printf("Erro: O segundo widget do GtkBox não é um GtkLabel\n");
-        return;
-    }
-
     const char *music_duration_str = gtk_label_get_text(GTK_LABEL(music_label));
-    if(!music_duration_str || strlen(music_duration_str) == 0) {
-        printf("Erro: Nome da musica inválido\n");
-        return;
-    }
+    gchar *full_path = g_strconcat(SYM_AUDIO_DIR, filename, NULL);
+    //see if filename exists in SYM_AUDIO_DIR
+    g_return_if_fail(filename && *filename && music_duration_str && *music_duration_str && g_file_test(full_path, G_FILE_TEST_EXISTS));
 
-    WidgetsData *widgets_data = (WidgetsData *)user_data;
-    if (!widgets_data || !GTK_IS_RANGE(GET_WIDGET(widgets_data->widgets_list, PROGRESS_BAR)) || !GTK_IS_RANGE(GET_WIDGET(widgets_data->widgets_list, VOLUME_SLIDER))) {
-        printf("Erro: falha ao alocar WidgetsData\n");
-        return;
-    }
+    g_free(full_path);
 
-    AudioTaskData *actual_data = g_new0(AudioTaskData, 1);
-    if (!actual_data) {
-        printf("Erro: falha ao alocar AudioThreadData\n");
-        return;
-    }
+    EuteranMainObject *wd = (EuteranMainObject *)user_data;
+    GtkWidget *progress_bar = GTK_WIDGET(euteran_main_object_get_widget_at(wd, PROGRESS_BAR));
+    GtkWidget *volume_slider = GTK_WIDGET(euteran_main_object_get_widget_at(wd, VOLUME_SLIDER));
+    g_return_if_fail(GTK_IS_RANGE(progress_bar) && GTK_IS_RANGE(volume_slider));
 
-    if (current_cancellable && !g_cancellable_is_cancelled(current_cancellable)) {
+    if (current_cancellable) {
         g_cancellable_cancel(current_cancellable);
+        g_clear_object(&current_cancellable);
     }
-
-    if (strstr(filename, ".mp3")) {
-        actual_data->audio_type = MP3;
-    } else if (strstr(filename, ".ogg")) {
-        actual_data->audio_type = OGG;
-    }
-
-    paused = FALSE;
-    gtk_button_set_icon_name(GTK_BUTTON(GET_WIDGET(widgets_data->widgets_list, MUSIC_BUTTON)), "media-playback-start");
-    last_volume = gtk_range_get_value(GTK_RANGE(GET_WIDGET(widgets_data->widgets_list, VOLUME_SLIDER)));
-        
-    snprintf(actual_data->filename, sizeof(actual_data->filename), "%s%s", SYM_AUDIO_DIR, filename);
-    actual_data->music_duration = string_to_double(g_object_get_data(G_OBJECT(row), "music_duration"));
-    gtk_range_set_value(GTK_RANGE(GET_WIDGET(widgets_data->widgets_list, PROGRESS_BAR)), 0.0);
-    widgets_data->music_duration = actual_data->music_duration;
-    widgets_data->elapsed_time = 0.0;
-
-    actual_data->widgets_data = widgets_data;
 
     if (progress_timer_id != 0) {
-        if (g_source_remove(progress_timer_id) == 0) {
-            g_print("Timer removido\n");
+        if (!g_source_remove(progress_timer_id)) {
+            log_error("Erro ao remover progress_timer_id");
         }
         progress_timer_id = 0;
     }
 
-    GTask *old_task = NULL;
-    GCancellable *old_cancellable = NULL;
+    EuteranAudioTaskData *actual_data = g_new0(EuteranAudioTaskData, 1);
+    g_return_if_fail(actual_data != NULL);
+    
 
-    static GMutex mutex;
-    g_mutex_lock(&mutex);
-
-    if (current_cancellable && !g_cancellable_is_cancelled(current_cancellable)) {
-        printf(RED_COLOR "Cancelando áudio atual...\n" RESET_COLOR);
-        g_cancellable_cancel(current_cancellable);
-        old_cancellable = current_cancellable;
-        current_cancellable = NULL;
+    if(g_str_has_suffix(filename, ".mp3")){
+        actual_data->audio_type = MP3;
+    } else if(g_str_has_suffix(filename, ".ogg")){
+        actual_data->audio_type = OGG;
+    } else if(g_str_has_suffix(filename, ".wav")){
+        actual_data->audio_type = WAV;
+    }
+    else{
+        log_error("Audio type not found\n");
+        return;
     }
 
-    if (current_task) {
-        old_task = current_task;
+    gtk_button_set_icon_name(GTK_BUTTON(euteran_main_object_get_widget_at(wd, MUSIC_BUTTON)), "media-playback-start");
+
+    EuteranSettings *current_settings_singleton = euteran_settings_get();
+    euteran_settings_set_last_volume(current_settings_singleton, (float)gtk_range_get_value(GTK_RANGE(volume_slider)));
+
+    snprintf(actual_data->filename, sizeof(actual_data->filename), "%s%s", SYM_AUDIO_DIR, filename);
+    actual_data->music_duration = string_to_double(g_object_get_data(G_OBJECT(row), "music_duration"));
+
+    euteran_main_object_set_duration(wd, actual_data->music_duration);
+    euteran_main_object_set_offset_time(wd, 0.0);
+    euteran_main_object_set_timer(wd, g_timer_new());
+
+    gtk_range_set_value(GTK_RANGE(progress_bar), 0.0);
+
+    EuteranMainAudio *audio_data_main = g_new0(EuteranMainAudio, 1);
+    audio_data_main->task_data = actual_data;
+
+    current_cancellable = g_cancellable_new();
+    audio_data_main->cancellable = current_cancellable;
+
+
+
+    if(!audio_data_main              ||
+       !audio_data_main->cancellable ||
+       !audio_data_main->task_data
+    ){
+        log_error("Audio data at on_clicked_progress_bar is null at the moment\n");
+        return;
+    }
+
+    if(current_task && G_IS_TASK(current_task)){
+        g_object_unref(current_task); 
         current_task = NULL;
     }
 
-    current_cancellable = g_cancellable_new();
-    current_task = g_task_new(NULL, current_cancellable, on_task_completed, NULL);
-    g_task_set_task_data(current_task, actual_data, g_free);
-    g_task_run_in_thread(current_task, play_audio_task);
-    g_task_set_check_cancellable(current_task, TRUE);
-    progress_timer_id = g_timeout_add(100, update_progress_bar, widgets_data);
-    g_mutex_unlock(&mutex);
+    
 
-    if (old_cancellable) g_object_unref(old_cancellable);
-    if (old_task) g_object_unref(old_task);
+    current_task = g_task_new(NULL, current_cancellable, on_task_completed, NULL);
+    g_object_ref(current_task);
+    g_task_set_task_data(current_task, audio_data_main, NULL);
+    g_task_set_check_cancellable(current_task, TRUE);
+    g_task_run_in_thread(current_task, play_audio_task);
+
+    progress_timer_id = g_timeout_add(100, update_progress_bar, wd);
 }
 
 gboolean on_drop(
@@ -210,8 +274,6 @@ gboolean on_drop(
     return TRUE;
 }
 
-
-
 void on_window_destroy(GtkWidget *widget, gpointer user_data) {
     static GMutex mutex;
     g_mutex_lock(&mutex);
@@ -222,41 +284,37 @@ void on_window_destroy(GtkWidget *widget, gpointer user_data) {
         progress_timer_id = 0;
     }
     g_mutex_unlock(&mutex);
+        
     if (user_data) {
-        g_free(user_data);
-    }
+        EuteranMainObject *widgets_data = (EuteranMainObject *)user_data;
 
-    if (user_data) {
-        WidgetsData *widgets_data = (WidgetsData *)user_data;
-        g_object_steal_data(G_OBJECT(GET_WIDGET(widgets_data->widgets_list, WINDOW_PARENT)), "audio_data");
-        if (widgets_data->widgets_list) {
-            g_list_free_full(widgets_data->widgets_list, (GDestroyNotify)gtk_widget_unparent);
-            widgets_data->widgets_list = NULL;
+        if(current_task){
+            g_cancellable_cancel(current_cancellable);
+            g_clear_object(&current_cancellable);
         }
-        save_current_settings(last_volume);
-        g_free(widgets_data);
+        EuteranSettings *current_settings_singleton = euteran_settings_get();
+        euteran_settings_save(current_settings_singleton, GTK_WINDOW(euteran_main_object_get_widget_at(widgets_data, WINDOW_PARENT)));
+        euteran_main_object_save_data_json(widgets_data);
+        euteran_main_object_clear(widgets_data);   
     }
 }
 
+static gboolean 
+on_delay_timer_clicked(
+    gpointer user_data
+)
+{
+    DelayData *data = (DelayData *)user_data;
 
-
-static void on_progress_bar_destroy(GtkWidget *widget, gpointer user_data){
-    struct data *data = user_data;
-
-    if(data->loop_stopped){
-        printf("A áudio foi cancelada\n");
-        return;
+    if (data->timer_to_consume <= 2.0f) {
+        data->timer_to_consume += 0.1f;
+        return G_SOURCE_CONTINUE;
     }
-    if (data && data->mpg) {
-        printf("Destruindo progress bar\n");
-        g_object_unref(data->mpg);
-        g_free(data);
-    }
+
+    *(data->delay_protect) = FALSE;
+    g_free(data);
+    return G_SOURCE_REMOVE;
 }
-
-
-
-
 
 gboolean on_clicked_progress_bar(
     GtkRange*       self,
@@ -267,57 +325,98 @@ gboolean on_clicked_progress_bar(
     if(scroll != 1){
         return TRUE;
     }
-    WidgetsData *wd = (WidgetsData *)user_data;
+
+    EuteranMainObject *wd = (EuteranMainObject *)user_data;
     if(!wd){
-        log_error("WD does not exist\n");
+        log_error("WD does not exist");
         return TRUE;
     }
-
-    struct data *audio_data = g_object_get_data(
-        G_OBJECT(GET_WIDGET(wd->widgets_list, WINDOW_PARENT)),
-        "audio_data"
-    );
+    EuteranMainAudio *audio_data = NULL;
+    if(current_task != NULL && G_IS_TASK(current_task)){
+        audio_data = g_task_get_task_data(current_task);
+    }else{
+        log_error("Current task does not exist");
+        return TRUE;
+    }
+        
 
     if(!audio_data || !audio_data->stream){
-        log_error("Audio data at on_clicked_progress_bar is null at the moment\n");
+        log_error("Audio data or stream does not exist");
         return TRUE;
     } 
 
     if(!audio_data->task_data){
-        log_error("task data does not exist\n");
+        log_error("task data does not exist");
         return TRUE;
     }
 
+    g_return_val_if_fail(
+        (audio_data->task_data->audio_type == OGG && audio_data->vorbis != NULL) ||
+        (audio_data->task_data->audio_type == MP3 && audio_data->mpg != NULL) ||
+        (audio_data->task_data->audio_type == WAV && audio_data->wav != NULL),
+        TRUE
+    );
+    
+    //lembrete -> isso aqui foi feito para proteger 
+    // o progress bar de ser movido rapidamente, causando problemas 
+    // de audio (principalmente com ogg), vou ver de consertar depois
+    static guint delay_timer_clicked_id = 0;
+    static gboolean delay_protect = FALSE;
+    if (delay_protect) {
+        return TRUE;
+    }
+    delay_protect = TRUE;
+
+    DelayData *data = g_new0(DelayData, 1);
+    data->delay_protect = &delay_protect;
+    data->timer_to_consume = 0.0f;
+
+    delay_timer_clicked_id = g_timeout_add(35, on_delay_timer_clicked, (gpointer)data);
 
     audio_data->task_data->frameoff = value * audio_data->task_data->music_duration * audio_data->rate;
 
-    static GMutex mutex;
-    g_mutex_lock(&mutex);
+    
+    g_mutex_lock(&audio_data->paused_mutex);
+    audio_data->paused = TRUE;
 
-    paused = TRUE;
+    GtkRange *progress_bar = GTK_RANGE(euteran_main_object_get_widget_at(wd, PROGRESS_BAR));
+    
 
     if(audio_data->task_data->audio_type == OGG){
-        wd->elapsed_time = value * audio_data->task_data->music_duration;
-        gtk_range_set_value(GTK_RANGE(GET_WIDGET(wd->widgets_list, PROGRESS_BAR)), value);
+        gdouble new_time = value * audio_data->task_data->music_duration;
+        euteran_main_object_set_timer(wd, g_timer_new());
+        g_timer_start(euteran_main_object_get_timer(wd));
+        euteran_main_object_set_offset_time(wd, new_time);
+        gtk_range_set_value(progress_bar, value);
         search_on_audio(audio_data);
     }
 
-    if(audio_data->mpg){
-        wd->elapsed_time = value * audio_data->task_data->music_duration;
-        gtk_range_set_value(GTK_RANGE(GET_WIDGET(wd->widgets_list, PROGRESS_BAR)), value);
+    if(audio_data->task_data->audio_type == MP3){
+        gdouble new_time = value * audio_data->task_data->music_duration;
+        euteran_main_object_set_timer(wd, g_timer_new());
+        g_timer_start(euteran_main_object_get_timer(wd));
+        euteran_main_object_set_offset_time(wd, new_time);
+        gtk_range_set_value(progress_bar, value);
         mpg123_feed(audio_data->mpg, NULL, 0);
         search_on_audio(audio_data);
+    } 
+
+    if (audio_data->task_data->audio_type == WAV) {
+        gdouble new_time = value * audio_data->task_data->music_duration;
+        euteran_main_object_set_timer(wd, g_timer_new());
+        g_timer_start(euteran_main_object_get_timer(wd));
+        euteran_main_object_set_offset_time(wd, new_time);
+        gtk_range_set_value(progress_bar, value);
+        search_on_audio(audio_data);
     }
 
-    paused = FALSE;
-    g_mutex_unlock(&mutex);
+    audio_data->paused = FALSE;
+    g_mutex_unlock(&audio_data->paused_mutex);
 
-    gtk_button_set_icon_name(GTK_BUTTON(GET_WIDGET(wd->widgets_list, MUSIC_BUTTON)), "media-playback-start");
+    gtk_button_set_icon_name(GTK_BUTTON(euteran_main_object_get_widget_at(wd, MUSIC_BUTTON)), "media-playback-start");
 
     return FALSE;
 }
-
-
 
 static void
 on_audio_link_changed (
@@ -328,13 +427,13 @@ on_audio_link_changed (
     gpointer           user_data
 )
 {
-    WidgetsData *wd = (WidgetsData *)user_data;
+    EuteranMainObject *wd = (EuteranMainObject *)user_data;
     if (!(event_type == G_FILE_MONITOR_EVENT_DELETED ||
           event_type == G_FILE_MONITOR_EVENT_ATTRIBUTE_CHANGED))
         return;
 
 
-    GtkListBox *list_box = GTK_LIST_BOX(GET_WIDGET(wd->widgets_list, LIST_BOX));
+    GtkListBox *list_box = GTK_LIST_BOX(euteran_main_object_get_widget_at(wd, LIST_BOX));
     if (!list_box) return;
 
     g_autofree gchar *changed_name = g_file_get_basename (file);
@@ -417,10 +516,10 @@ on_audio_dir_changed (
         return;
     }
 
-    WidgetsData *wd = (WidgetsData *)user_data;
+    EuteranMainObject *wd = (EuteranMainObject *)user_data;
     if (!wd) return;
 
-    GtkListBox *list_box = GTK_LIST_BOX(GET_WIDGET(wd->widgets_list, LIST_BOX));
+    GtkListBox *list_box = GTK_LIST_BOX(euteran_main_object_get_widget_at(wd, LIST_BOX));
     if (!list_box) return;
 
     gtk_list_box_remove_all(list_box);
@@ -474,4 +573,164 @@ void monitor_audio_dir(
         (gpointer)audio_dir
     );
     g_object_unref(audio_dir_file);
+}
+
+
+gboolean
+on_switcher_add_button(
+    GtkWidget       *button,
+    gpointer        user_data
+)
+{
+    EuteranMainObject *wd = (EuteranMainObject *)user_data;
+    if (!wd || !EUTERAN_IS_MAIN_OBJECT(wd)) {
+        return FALSE;
+    }
+
+
+    GtkWidget *stack = (GtkWidget *)euteran_main_object_get_widget_at(wd, STACK);
+
+
+    if(!stack || !GTK_IS_STACK(stack)){
+        return FALSE;
+    }
+
+    GtkSelectionModel *pages = gtk_stack_get_pages(GTK_STACK(stack));
+
+    if(!pages || !GTK_IS_SELECTION_MODEL(pages)){
+        return FALSE;
+    }
+
+    guint n_items = g_list_model_get_n_items(G_LIST_MODEL(pages));
+    GtkStackPage *page_ = g_list_model_get_item(G_LIST_MODEL(pages), n_items - 1);
+    if (!page_ || !GTK_IS_STACK_PAGE(page_)) {
+        return FALSE;
+    }
+
+    g_object_unref(page_); 
+
+
+    const gchar *last_page_title = gtk_stack_page_get_title(GTK_STACK_PAGE(page_));
+
+    if(!last_page_title || !GTK_IS_STACK_PAGE(page_)) {
+        return FALSE;
+    }
+
+    GtkWidget *scrolled_window = gtk_scrolled_window_new();
+    gtk_scrolled_window_set_policy(
+        GTK_SCROLLED_WINDOW(scrolled_window),
+        GTK_POLICY_NEVER,
+        GTK_POLICY_AUTOMATIC
+    );
+    gtk_widget_set_vexpand(scrolled_window, TRUE);
+    gtk_scrolled_window_set_min_content_height(
+        GTK_SCROLLED_WINDOW(scrolled_window),
+        297
+    );
+    
+    GtkWidget *list_box = gtk_list_box_new();
+    gtk_list_box_set_selection_mode(GTK_LIST_BOX(list_box), GTK_SELECTION_BROWSE);
+    gtk_widget_add_css_class(list_box, "list_box");
+
+    gtk_scrolled_window_set_child(
+        GTK_SCROLLED_WINDOW(scrolled_window),
+        list_box
+    );
+
+
+
+    GtkStackPage *page = gtk_stack_add_child(
+        GTK_STACK(stack),
+        scrolled_window
+    );
+    gint last_page_index = atoi(last_page_title);
+    char *page_name = g_strdup_printf("%d",  last_page_index + 1);
+    gtk_stack_page_set_title(page, page_name);
+    g_free(page_name);
+
+    return TRUE;
+
+}
+
+
+void
+on_stack_switcher_right_click(
+    GtkGestureClick *gesture, 
+    gint            n_press,
+    double          x, 
+    double          y, 
+    gpointer        user_data
+)
+{
+    if(gtk_gesture_single_get_current_button(GTK_GESTURE_SINGLE(gesture)) == GDK_BUTTON_SECONDARY){
+        EuteranMainObject *wd = (EuteranMainObject *)user_data;
+        if (!wd || !EUTERAN_IS_MAIN_OBJECT(wd)) {
+            log_error("WD does not exist");
+            return;
+        }
+        GtkWidget *switcher = gtk_event_controller_get_widget(
+            GTK_EVENT_CONTROLLER((gesture))
+        );
+        GtkWidget *pressed_button = gtk_widget_pick(
+            switcher,
+            x,
+            y,
+            GTK_PICK_DEFAULT
+        );
+        
+        if (pressed_button == NULL) return;
+
+        GtkSelectionModel *pages = gtk_stack_get_pages(
+            GTK_STACK(euteran_main_object_get_widget_at(wd, STACK))
+        );
+
+        GtkWidget *label_to_remove = NULL;
+
+        if(GTK_IS_LABEL(pressed_button)){
+            label_to_remove = pressed_button;
+        } else if(GTK_IS_TOGGLE_BUTTON(pressed_button)){
+            label_to_remove = gtk_widget_get_first_child(pressed_button);
+        }
+
+        const gchar *page_name = gtk_label_get_text(GTK_LABEL(label_to_remove));
+        GtkWidget *stack_page = NULL;
+        guint n_pages = g_list_model_get_n_items(G_LIST_MODEL(pages));
+        guint index_to_remove = 0;
+
+        for (guint i = 0; i < n_pages; i++) {
+            const gchar *page_title = gtk_stack_page_get_title(
+                GTK_STACK_PAGE(g_list_model_get_item(G_LIST_MODEL(pages), i))
+            );
+            if(g_strcmp0(page_name, page_title) == 0){
+                stack_page = gtk_stack_page_get_child(
+                    GTK_STACK_PAGE(g_list_model_get_item(G_LIST_MODEL(pages), i))
+                );
+                index_to_remove = i;
+                break;
+            }
+        }
+        log_warning("Removing page %s", page_name);
+        if(stack_page){
+            GtkWidget *list_box_to_clean = euteran_main_object_get_list_box(
+                pages,
+                index_to_remove);
+
+            if(list_box_to_clean){
+                GtkWidget *list_box_child = gtk_widget_get_first_child(list_box_to_clean);
+                while(list_box_child){
+                    gtk_widget_unparent(list_box_child);
+                    list_box_child = gtk_widget_get_first_child(list_box_to_clean);
+                }
+
+                gtk_widget_queue_draw(list_box_to_clean);
+            }
+
+            gtk_stack_remove(
+                GTK_STACK(euteran_main_object_get_widget_at(wd, STACK)),
+                stack_page
+            );
+        }
+
+        
+    }
 }

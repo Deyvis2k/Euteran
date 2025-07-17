@@ -3,6 +3,7 @@
 
 #include <gtk/gtk.h>
 #include "utils.h"
+#include "euteran_main_object.h"
 
 typedef struct {
     GtkWidget *row_box;
@@ -15,8 +16,7 @@ typedef struct {
 
 void create_music_list(
     const gchar     *path, 
-    WidgetsData     *data, 
-    GtkWidget       *grid_parent, 
+    EuteranMainObject *widgets_object,
     PlayMusicFunc   play_selected_music
 );
 

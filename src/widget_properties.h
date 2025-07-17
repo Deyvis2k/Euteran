@@ -28,8 +28,9 @@ void play_audio_task(GTask *task, gpointer source_object, gpointer task_data, GC
 gboolean update_progress_bar(gpointer user_data);
 gboolean pause_audio(GtkWidget *button, gpointer user_data);
 void play_selected_music(GtkListBox *box, GtkListBoxRow *row, gpointer user_data);
-
-
+gboolean on_switcher_add_button(GtkWidget *button, gpointer user_data);
+void on_stack_switcher_right_click(GtkGestureClick *gesture, gint n_press, double x, double y, gpointer user_data);
+gboolean interrupt_audio(GtkWidget *button, gpointer user_data);
 
 void 
 monitor_audio_dir_linkfiles(

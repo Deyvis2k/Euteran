@@ -6,3 +6,6 @@ Build/
 compile_commands.json
 *.txt
 new_core
+cmake-build-debug*/
+.idea/
+.vscode/

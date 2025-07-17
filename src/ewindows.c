@@ -1,10 +1,10 @@
 #include "ewindows.h"
 #include "e_logs.h"
+#include "euteran_main_object.h"
 #include "gio/gio.h"
 #include "glib-object.h"
 #include "glib.h"
 #include "gtk/gtk.h"
-#include "gtk/gtkshortcut.h"
 #include "utils.h"
 #include "e_widgets.h"
 #include "constants.h"
@@ -24,13 +24,12 @@ on_command_done(
         return;
     }
 
-    GtkWidget *window = GTK_WIDGET(user_data);
-    WidgetsData *widgets_data = g_object_get_data(G_OBJECT(window), "widgets_data");
-    GtkWidget *music_holder = g_object_get_data(G_OBJECT(window), "music_holder");
-    PlayMusicFunc play_selected_music = g_object_get_data(G_OBJECT(window), "play_selected_music");
+    EuteranMainObject *widgets_data = EUTERAN_MAIN_OBJECT(user_data);
+    GtkWidget *window = GTK_WIDGET(euteran_main_object_get_widget_at(widgets_data, WINDOW_PARENT));
+    PlayMusicFunc play_selected_music = euteran_main_object_get_optional_pointer_object(widgets_data);
 
-    if (widgets_data && music_holder && play_selected_music) {
-        create_music_list(SYM_AUDIO_DIR, widgets_data, music_holder, play_selected_music);
+    if (widgets_data && play_selected_music) {
+        create_music_list(SYM_AUDIO_DIR, widgets_data, play_selected_music);
         log_message("Músicas carregadas com sucesso");
     }
 }
@@ -45,7 +44,8 @@ void on_folder_open(
 {
     GError *error = NULL;
     GFile *file = gtk_file_dialog_select_folder_finish(dialog, res, &error);
-    GtkWidget *window = GTK_WIDGET(user_data);
+    EuteranMainObject *widgets_data = EUTERAN_MAIN_OBJECT(user_data);
+    GtkWidget *window = GTK_WIDGET(euteran_main_object_get_widget_at(widgets_data, WINDOW_PARENT));
 
     if(!GTK_IS_WIDGET(window) || window == NULL) {
         log_error("Erro: window nao eh um GtkWidget"); 
@@ -59,11 +59,13 @@ void on_folder_open(
             log_command("Criando a pasta %s...", SYM_AUDIO_DIR);
             g_mkdir_with_parents(SYM_AUDIO_DIR, 0755);
         }
+        //ogg,wav,mp3
+        char command_buf[1024];
+        snprintf(command_buf, sizeof(command_buf), 
+         "sh -c \"find %s -type f \\( -iname \\*.mp3 -o -iname \\*.ogg -o -iname \\*.wav \\) -exec ln -sf {} %s \\;\"",
+         filename, SYM_AUDIO_DIR);
 
-        const gchar command[] = "sh -c \"find %s -type f \\( -iname \\*.mp3 -o -iname \\*.ogg \\) -exec ln -sf {} %s \\;\"";
-        gchar *command_string = g_strdup_printf(command, filename, SYM_AUDIO_DIR);
-        run_subprocess_async(command_string, on_command_done, window);
-        g_free(command_string);
+        run_subprocess_async(command_buf, on_command_done, user_data);
         g_free(filename);
         g_object_unref(file);
     } else {
@@ -77,15 +79,14 @@ void on_folder_open(
 }
 
 void select_folder(GtkWidget *button, gpointer user_data) {
-
-    GtkWidget *window_parent = (GtkWidget *)user_data;
+    EuteranMainObject *wd = EUTERAN_MAIN_OBJECT(user_data);
+    GtkWidget *window_parent = (GtkWidget *)euteran_main_object_get_widget_at(wd, WINDOW_PARENT);
     if(!GTK_IS_WIDGET(window_parent) || window_parent == NULL) {
         log_error("Erro: window nao eh um GtkWidget"); 
         return;
     }
 
-    GtkWidget *menu_button_object = g_object_get_data(
-    G_OBJECT(window_parent), "menu_button_popover");
+    GtkWidget *menu_button_object = GTK_WIDGET(euteran_main_object_get_widget_at(wd, MENU_BUTTON));
 
     if(menu_button_object)
         gtk_menu_button_popdown(GTK_MENU_BUTTON(menu_button_object));

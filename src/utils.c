@@ -7,12 +7,12 @@
 #include <stdlib.h>
 #include <math.h>
 #include <ctype.h>
-#include "constants.h"
 #include <sys/stat.h>
-#include "mpg123.h"
-#include "ogg/stb_vorbis.h"
+#include "audio.h"
+#include "json-glib/json-glib.h"
 
-const double* seconds_to_minute(double music_duration) {
+
+double* seconds_to_minute(double music_duration) {
     int min = music_duration * MINUTE_CONVERT;
     double seconds = fmod(music_duration, 60);
     
@@ -26,11 +26,6 @@ const double* seconds_to_minute(double music_duration) {
     result[0] = min;
     result[1] = seconds;
     return result;
-}
-
-double get_duration_from_file(const char *file) {
-    double duration = get_duration(file);
-    return duration;
 }
 
 char *cast_simple_double_to_string(double value) {
@@ -63,7 +58,7 @@ char* cast_double_to_string(double value) {
     }
 
     if (value > 60) {
-        const double* time_values = seconds_to_minute(value);
+        double* time_values = seconds_to_minute(value);
         if (!time_values) {
             free(buffer);
             log_error("Cannot get time values");
@@ -78,6 +73,7 @@ char* cast_double_to_string(double value) {
         double s = time_values[1];
         if(h > 0){
             snprintf(buffer, 10, "%.0fh%.0fm%.0fs", h, m, s);
+            free(time_values);
             return buffer;
         }
         if(s < 10){
@@ -86,6 +82,7 @@ char* cast_double_to_string(double value) {
         else{
             snprintf(buffer, 10, "%.0fm%.0fs", m, s);
         }
+        free(time_values);
         return buffer;
     }
 
@@ -100,13 +97,10 @@ double string_to_double(const char *str){
 
 
 
-music_list_t list_files_musics(const char* dir) {
+GList *list_files_musics(const char* dir) {
     DIR *dp;
     struct dirent *ep;
-    music_t *musics = NULL;  
-    size_t total = 0; 
-    music_list_t list = {NULL, 0};
-    size_t count = 0;
+    GList *list = NULL;
 
     dp = opendir(dir);
     if (dp == NULL) {
@@ -117,46 +111,40 @@ music_list_t list_files_musics(const char* dir) {
         if (ep->d_type == DT_DIR || ep->d_name[0] == '.') {
             continue;
         }
-        if (strstr(ep->d_name, ALLOWED_EXTENSION) != NULL || strstr(ep->d_name, ".ogg") != NULL) {
-            music_t* temp = realloc(musics, sizeof(music_t) * (total + 1));
-            if (temp == NULL) {
-                if(musics){
-                    for(size_t i = 0; i < total; i++){
-                        free(musics[i].name);
-                    }
-                    free(musics);
-                }
+        if (IS_ALLOWED_EXTENSION(ep->d_name)) {
+            music_t *music = malloc(sizeof(music_t));
+            if (music == NULL) {
                 closedir(dp);
                 return list;
             }
-            musics = temp;
 
-            musics[total].name = strdup(ep->d_name);
-            if (musics[total].name == NULL) {
-                for(size_t i = 0; i < total; i++){
-                    free(musics[i].name);
-                }
-                free(musics);
+            music->name = strdup(ep->d_name);
+            if (music->name == NULL) {
+                free(music);
                 closedir(dp);
                 return list;
             }
+
             char* full_path = malloc(strlen(SYM_AUDIO_DIR) + strlen(ep->d_name) + 2);
             sprintf(full_path, "%s%s", SYM_AUDIO_DIR, ep->d_name);
 
-            if(strstr(ep->d_name, ".ogg") != NULL){
-                musics[total].duration = get_duration_ogg(full_path);
-            }else
-                musics[total].duration = get_duration(full_path);
+            music->duration = get_duration(full_path);
+
             free(full_path);
-            total++;
+
+            if (music->duration <= 0.0) {
+                free(music->name);
+                free(music);
+                continue;
+            }
+
+            list = g_list_append(list, music);
+            continue;
+            
         }
     }
 
     closedir(dp);
-
-    count = total;
-    list.musics = musics;
-    list.count_size = count;
 
     return list;
 }
@@ -250,114 +238,21 @@ char* get_within_quotes(const char* str) {
 }
 
 
-void save_current_settings(float last_volume){
-    if(!g_file_test(CONFIGURATION_DIR, G_FILE_TEST_EXISTS)){
-        g_mkdir_with_parents(CONFIGURATION_DIR, 0777);
-    }
-    gchar *link_to_save = g_strdup_printf("%s/%s", CONFIGURATION_DIR, "current_settings.conf");
-    FILE *file_to_save = fopen(link_to_save, "w");
-
-    if(file_to_save == NULL){
-        g_print("Erro ao abrir o arquivo para escrita\n");
-        g_free(link_to_save);
-        return;
-    }
-    fprintf(file_to_save, "last_volume = %f\n", last_volume);
-    fclose(file_to_save);
-    g_free(link_to_save);
-}
-
-float get_volume_from_settings(){
-    if(!g_file_test(CONFIGURATION_DIR, G_FILE_TEST_EXISTS)){
-        g_mkdir_with_parents(CONFIGURATION_DIR, 0777);
-        return 0.500f;
-    }
-    gchar *link_to_save = g_strdup_printf("%s/%s", CONFIGURATION_DIR, "current_settings.conf");
-    FILE *file_to_read = fopen(link_to_save, "r");
-    if(file_to_read == NULL){
-        log_error("Erro ao abrir o arquivo para leitura");
-        g_free(link_to_save);
-        return 0.500f;
-    }
-    
-    char line[256];
-    while (fgets(line, sizeof(line), file_to_read)) {
-        if (strncmp(line, "last_volume = ", 14) == 0) {
-            float volume = atof(line + 14);
-            fclose(file_to_read);
-            g_free(link_to_save);
-            return volume;
-        }
-    }
-    fclose(file_to_read);
-    g_free(link_to_save);
-    return 0.500f;
-}
-
-
-double get_duration(const char *music_path) {
-    mpg123_handle *mpg = NULL;
-    int err;
-    long rate;
-    int channels, encoding;
-    off_t frames;
-    double duration = 0;
-
-    mpg123_init();
-    mpg = mpg123_new(NULL, &err);
-    if (!mpg) {
-        log_error("Falha ao criar handle mpg123: %s", mpg123_plain_strerror(err));
+double
+formatted_string_to_double(const char *str)
+{
+    // formatted like 1m30s goes to 90s
+    char *end;
+    double value = strtod(str, &end);
+    if (end == str) {
         return -1;
     }
-
-    if (mpg123_open(mpg, music_path) != MPG123_OK) {
-        log_error("Erro ao abrir o arquivo MP3: %s", mpg123_strerror(mpg));
-        mpg123_delete(mpg);
-       
-        return -1;
+    if (*end == 'm') {
+        return value * 60;
     }
 
-    mpg123_getformat(mpg, &rate, &channels, &encoding);
-    frames = mpg123_length(mpg);
-
-    if (frames > 0) {
-        duration = (double)frames / rate;
+    if(*end == 'h'){
+        return value * 3600;
     }
-
-    mpg123_close(mpg);
-    mpg123_delete(mpg);
-    return duration;
-}
-
-double get_duration_ogg(const char *music_path) {
-    if (!music_path || strlen(music_path) == 0) {
-        log_error("Caminho do arquivo OGG inválido");
-        return 0.0;
-    }
-
-    int error_ogg;
-    double duration = 0.0;
-#define GLIST_GET(type, list, index) ((type*)g_list_nth_data((list), (index)))
-    stb_vorbis *f = stb_vorbis_open_filename(music_path, &error_ogg, NULL);
-    if (!f) {
-        log_error("Erro ao abrir o arquivo OGG: %d", error_ogg);
-        return 0.0;
-    }
-
-    stb_vorbis_info info = stb_vorbis_get_info(f);
-    if (info.sample_rate <= 0) {
-        log_error("Informações inválidas do arquivo OGG");
-        stb_vorbis_close(f);
-        return 0.0;
-    }
-
-    duration = stb_vorbis_stream_length_in_seconds(f);
-    stb_vorbis_close(f);
-
-    if (duration <= 0.0) {
-        log_error("Duração inválida para o arquivo OGG: %f", duration);
-        return 0.0;
-    }
-
-    return duration;
+    return value;
 }

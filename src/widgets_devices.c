@@ -1,12 +1,14 @@
 #include "widgets_devices.h"
 #include "e_logs.h"
 #include "audio_devices.h"
+#include "euteran_main_object.h"
 #include "glib.h"
 #include "gtk/gtk.h"
 #include "gtk/gtkshortcut.h"
 #include "utils.h"
 
 static gboolean opened_window = FALSE;
+static int last_width, last_height = 0;
 
 void 
 on_setup_list_item(
@@ -73,6 +75,9 @@ on_window_destroy(
             g_list_free_full(audio_devices->audio_device_source, free_audio_device);
         free(audio_devices);
     }
+
+    gtk_window_get_default_size(GTK_WINDOW(window), &last_width, &last_height);
+
     opened_window = FALSE;
 }
 
@@ -93,7 +98,8 @@ gboolean on_key_press(
 }
 
 void construct_widget(GtkWidget *button, gpointer user_data) {
-    GtkWidget *window_parent = (GtkWidget *)user_data;
+    EuteranMainObject *wd = EUTERAN_MAIN_OBJECT(user_data);
+    GtkWidget *window_parent = GTK_WIDGET(euteran_main_object_get_widget_at(wd, WINDOW_PARENT));
     if (!GTK_IS_WIDGET(window_parent) || window_parent == NULL) {
         log_error("Erro: window nao eh um GtkWidget");
         return;
@@ -104,7 +110,7 @@ void construct_widget(GtkWidget *button, gpointer user_data) {
     }
     opened_window = TRUE;
 
-    GtkWidget *menu_button_object = g_object_get_data(G_OBJECT(window_parent), "menu_button_popover");
+    GtkWidget *menu_button_object = GTK_WIDGET(euteran_main_object_get_widget_at(wd, MENU_BUTTON));
     if (menu_button_object)
         gtk_menu_button_popdown(GTK_MENU_BUTTON(menu_button_object));
     
@@ -128,13 +134,26 @@ void construct_widget(GtkWidget *button, gpointer user_data) {
     GtkWidget *sink_label = BUILDER_GET(builder, "sink_label");
     GtkWidget *source_label = BUILDER_GET(builder, "source_label");
     GtkWidget *confirm_button = BUILDER_GET(builder, "confirm_button");
+    GtkStringList *virtual_model_audio_sink = GTK_STRING_LIST(gtk_builder_get_object(builder, "sink_list"));
+    GtkStringList *virtual_model_audio_source = GTK_STRING_LIST(gtk_builder_get_object(builder, "source_list"));
+    GtkDropDown *dropdown_sink = GTK_DROP_DOWN(gtk_builder_get_object(builder, "sink_dropdown"));
+    GtkDropDown *dropdown_source = GTK_DROP_DOWN(gtk_builder_get_object(builder, "source_dropdown"));
 
+    g_return_if_fail( 
+        new_window                  != NULL &&
+        box                         != NULL && 
+        sink_label                  != NULL && 
+        source_label                != NULL && 
+        confirm_button              != NULL && 
+        virtual_model_audio_sink    != NULL && 
+        virtual_model_audio_source  != NULL && 
+        dropdown_sink               != NULL && 
+        dropdown_source             != NULL
+    );
+    gtk_window_set_default_size(GTK_WINDOW(new_window), last_width, last_height);
     GtkEventController *controller = gtk_event_controller_key_new();
     gtk_widget_add_controller(new_window, controller);
 
-    GtkStringList *virtual_model_audio_sink = GTK_STRING_LIST(gtk_builder_get_object(builder, "sink_list"));
-    GtkStringList *virtual_model_audio_source = GTK_STRING_LIST(gtk_builder_get_object(builder, "source_list"));
-    
     for(GList* node = audio_devices->audio_device_sink; node != NULL; node = node->next) {
         struct audio_device* audio_device = (struct audio_device*)node->data;
         if (audio_device->node_description != NULL && strlen(audio_device->node_description) != 0) {
@@ -155,9 +174,6 @@ void construct_widget(GtkWidget *button, gpointer user_data) {
             log_warning("Device sem descricao");
         }
     }
-
-    GtkDropDown *dropdown_sink = GTK_DROP_DOWN(gtk_builder_get_object(builder, "sink_dropdown"));
-    GtkDropDown *dropdown_source = GTK_DROP_DOWN(gtk_builder_get_object(builder, "source_dropdown"));
 
     GtkListItemFactory *factory_sink = gtk_signal_list_item_factory_new();
     GtkListItemFactory *factory_source = gtk_signal_list_item_factory_new();

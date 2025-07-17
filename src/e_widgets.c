@@ -1,16 +1,15 @@
 #include "e_widgets.h"
 #include "constants.h"
 #include "e_logs.h"
+#include "euteran_main_object.h"
 #include "gdk/gdk.h"
 #include "glib.h"
 #include "gtk/gtk.h"
-#include "constants.h"
 #include "adwaita.h"
 #include "utils.h"
+#include "audio.h"
 
 #define _(s) (s)
-
-
 
 static gboolean is_pressed = FALSE;
 
@@ -70,7 +69,6 @@ create_remove_music_button(
     is_pressed = TRUE;
     AdwDialog *dialog;
     dialog = adw_alert_dialog_new (_("Remove Music?"), NULL);
-
 
     adw_alert_dialog_format_body (ADW_ALERT_DIALOG (dialog),
                                 _("Are you sure you want to remove\n %s?"),
@@ -148,10 +146,9 @@ free_music_container(
 }
 
 void create_music_list(
-    const gchar     *path, 
-    WidgetsData     *widgets_data, 
-    GtkWidget       *music_holder, 
-    PlayMusicFunc   play_selected_music
+    const gchar              *path, 
+    EuteranMainObject        *widgets_data, 
+    PlayMusicFunc            play_selected_music
 ) 
 {
     
@@ -159,13 +156,33 @@ void create_music_list(
         log_error("Widgets_data ou seus componentes são inválidos");
         return;
     }
+    
+    GtkWidget *stack = GTK_WIDGET(euteran_main_object_get_widget_at(widgets_data, STACK));
+
+    if(!stack){
+        log_error("Stack nao encontrada");
+        return;
+    }
+
+    GtkWidget *child_observer = gtk_stack_get_visible_child(GTK_STACK(stack));
+
+    if(!child_observer){
+        log_error("Child observer nao encontrado");
+        return;
+    }
+
+    GtkWidget *scrolled_window = gtk_stack_page_get_child(GTK_STACK_PAGE(child_observer));
 
 
-    GtkWidget *list_box = GET_WIDGET(widgets_data->widgets_list, LIST_BOX);
+    GtkWidget *list_box = gtk_scrolled_window_get_child(GTK_SCROLLED_WINDOW(scrolled_window));
+
+    if(GTK_IS_VIEWPORT(list_box)){
+        list_box = gtk_viewport_get_child(GTK_VIEWPORT(list_box));
+    }
     
 
-    music_list_t new_music_list = list_files_musics(path);
-    if (new_music_list.musics == NULL) {
+    GList *new_music_list = list_files_musics(path);
+    if (new_music_list == NULL) {
         log_warning("Nenhuma musica encontrada");
         return;
     }
@@ -173,9 +190,11 @@ void create_music_list(
 
     gtk_list_box_remove_all(GTK_LIST_BOX(list_box));
 
-    for (size_t i = 0; i < new_music_list.count_size; i++) {
-        if (new_music_list.musics[i].name == NULL) {
-            log_error("Música inválida no índice %zu", i);
+    for (GList *node = new_music_list; node != NULL; node = node->next) {
+        music_t *temp_music = (music_t *)node->data;
+
+        if(!temp_music->name){
+            log_error("Musica sem nome");
             continue;
         }
 
@@ -198,24 +217,24 @@ void create_music_list(
         
         EMusicContainer *music_container = g_new0(EMusicContainer, 1);
 
-        music_container->window_parent = GET_WIDGET(widgets_data->widgets_list, WINDOW_PARENT);
+        music_container->window_parent = GTK_WIDGET(euteran_main_object_get_widget_at(widgets_data, WINDOW_PARENT));
         music_container->row = row;
         music_container->row_box = row_box;
-        music_container->list_box = GET_WIDGET(widgets_data->widgets_list, LIST_BOX);
+        music_container->list_box = GTK_WIDGET(euteran_main_object_get_widget_at(widgets_data, LIST_BOX));
         
         gtk_widget_add_controller(music_container->row_box, GTK_EVENT_CONTROLLER(event_mouse));
         g_signal_connect(event_mouse, "pressed", G_CALLBACK(on_pressed_right_click_event), music_container);
         g_signal_connect(music_container->row_box, "destroy", G_CALLBACK(on_removed_music_event_window), music_container);
         
 
-        GtkWidget *label = gtk_label_new(new_music_list.musics[i].name);
+        GtkWidget *label = gtk_label_new(temp_music->name);
         gtk_label_set_ellipsize(GTK_LABEL(label), PANGO_ELLIPSIZE_END);
         gtk_label_set_xalign(GTK_LABEL(label), 1.0);
         gtk_widget_set_halign(label, GTK_ALIGN_BASELINE_CENTER);
         gtk_widget_set_hexpand(label, TRUE); 
         gtk_box_append(GTK_BOX(row_box), label);
         
-        music_container->path = g_strconcat(SYM_AUDIO_DIR, new_music_list.musics[i].name, NULL);
+        music_container->path = g_strconcat(SYM_AUDIO_DIR, temp_music->name, NULL);
 
         GtkWidget *line = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
         gtk_widget_set_size_request(line, 1, -1);
@@ -223,7 +242,7 @@ void create_music_list(
         gtk_widget_add_css_class(line, "line_class");
         gtk_box_append(GTK_BOX(row_box), line);
 
-        const char *duration_str = cast_double_to_string(new_music_list.musics[i].duration);
+        const char *duration_str = cast_double_to_string(temp_music->duration);
         GtkWidget *duration = gtk_label_new(duration_str ? duration_str : "0.0");        
         gtk_widget_set_size_request(duration, 75, -1);
         gtk_label_set_ellipsize(GTK_LABEL(duration), PANGO_ELLIPSIZE_END);
@@ -231,11 +250,11 @@ void create_music_list(
         gtk_box_append(GTK_BOX(row_box), duration);
 
         gtk_list_box_row_set_child(GTK_LIST_BOX_ROW(row), row_box);
-        gtk_list_box_insert(GTK_LIST_BOX(GET_WIDGET(widgets_data->widgets_list, LIST_BOX)), row, (gint)i);
+        gtk_list_box_insert(GTK_LIST_BOX(euteran_main_object_get_widget_at(widgets_data, LIST_BOX)), row, -1);
 
-        g_object_set_data(G_OBJECT(row), "music_name", new_music_list.musics[i].name);
+        g_object_set_data(G_OBJECT(row), "music_name", temp_music->name);
         g_object_set_data(G_OBJECT(row), "music_duration",
-                          cast_simple_double_to_string(new_music_list.musics[i].duration));
+                          cast_simple_double_to_string(temp_music->duration));
 
         g_object_set_data_full(
             G_OBJECT(row),
@@ -245,15 +264,10 @@ void create_music_list(
         );
     }
 
-    if (new_music_list.musics != NULL) {
-        for (size_t i = 0; i < new_music_list.count_size; i++) {
-            free(new_music_list.musics[i].name);
-        }
-        free(new_music_list.musics);
-    }
+    g_list_free(new_music_list);
 
-    g_signal_handlers_disconnect_by_func(GET_WIDGET(widgets_data->widgets_list, LIST_BOX), G_CALLBACK(play_selected_music), widgets_data);
-    g_signal_connect(GET_WIDGET(widgets_data->widgets_list, LIST_BOX), "row-activated", G_CALLBACK(play_selected_music), widgets_data);
+    g_signal_handlers_disconnect_by_func(GTK_WIDGET(euteran_main_object_get_widget_at(widgets_data, LIST_BOX)), G_CALLBACK(play_selected_music), widgets_data);
+    g_signal_connect(GTK_WIDGET(euteran_main_object_get_widget_at(widgets_data, LIST_BOX)), "row-activated", G_CALLBACK(play_selected_music), widgets_data);
 }
 
 gboolean 
@@ -293,7 +307,7 @@ add_music_to_list(
         return FALSE;
     }
     fclose(test_file);
-    const char *ext = strrchr(clean_uri, '.');
+    const char *ext = strrchr(clean_uri, '.') - 1;
 
     if (ext == NULL || *(ext + 1) == '\0') {
         log_error("Extensão inválida");
@@ -303,7 +317,7 @@ add_music_to_list(
 
     ext++; 
 
-    if (g_ascii_strcasecmp(ext, "mp3") != 0 && g_ascii_strcasecmp(ext, "ogg") != 0) {
+    if (!IS_ALLOWED_EXTENSION(ext)) {
         log_error("Extensão inválida: %s", ext);
         g_free(clean_uri);
         return FALSE;
@@ -334,7 +348,34 @@ add_music_to_list(
     g_object_unref(link_file);
 
 
-    WidgetsData *widgets_data = user_data;
+    EuteranMainObject *widgets_data = user_data;
+    GtkWidget *stack = (GtkWidget *)euteran_main_object_get_widget_at(widgets_data, STACK);
+    if (!stack) {
+        log_error("Erro ao obter stack");
+        return FALSE;
+    }
+    
+    GtkWidget *scrolled_window = gtk_stack_get_visible_child(GTK_STACK(stack));
+    if (!scrolled_window || !GTK_IS_SCROLLED_WINDOW(scrolled_window)) {
+        log_error("Erro ao obter scrolled window");
+        return FALSE;
+    }
+
+    GtkWidget *list_box = gtk_scrolled_window_get_child(GTK_SCROLLED_WINDOW(scrolled_window));
+    if (!list_box) {
+        log_error("Erro ao obter list box");
+        return FALSE;
+    }
+
+    if(GTK_IS_VIEWPORT(list_box)){
+        list_box = gtk_viewport_get_child(GTK_VIEWPORT(list_box));
+    }
+
+    if(!GTK_IS_LIST_BOX(list_box)){
+        log_error("Erro ao obter list box");
+        return FALSE;
+    }
+
 
     GtkWidget *row = gtk_list_box_row_new();
     if (!row) {
@@ -354,10 +395,10 @@ add_music_to_list(
     
     EMusicContainer *music_container = g_new0(EMusicContainer, 1);
 
-    music_container->window_parent = GET_WIDGET(widgets_data->widgets_list, WINDOW_PARENT);
+    music_container->window_parent = (GtkWidget *)euteran_main_object_get_widget_at(widgets_data, WINDOW_PARENT);
     music_container->row = row;
     music_container->row_box = row_box;
-    music_container->list_box = GET_WIDGET(widgets_data->widgets_list, LIST_BOX);
+    music_container->list_box = list_box;
     music_container->path = g_strconcat(SYM_AUDIO_DIR, FILENAME, NULL);
     
     gtk_widget_add_controller(music_container->row_box, GTK_EVENT_CONTROLLER(event_mouse));
@@ -378,7 +419,7 @@ add_music_to_list(
     gtk_widget_add_css_class(line, "line_class");
     gtk_box_append(GTK_BOX(row_box), line);
     
-    double duration_ = strcmp(ext, "mp3") == 0 ? get_duration(path) : get_duration_ogg(path);
+    double duration_ = get_duration(link_path);
     const char *duration_str = cast_double_to_string(duration_);
     GtkWidget *duration = gtk_label_new(duration_str ? duration_str : "0.0");
     gtk_widget_set_size_request(duration, 75, -1);
@@ -387,7 +428,7 @@ add_music_to_list(
     gtk_box_append(GTK_BOX(row_box), duration);
 
     gtk_list_box_row_set_child(GTK_LIST_BOX_ROW(row), row_box);
-    gtk_list_box_insert(GTK_LIST_BOX(GET_WIDGET(widgets_data->widgets_list, LIST_BOX)), row, -1);
+    gtk_list_box_insert(GTK_LIST_BOX(list_box), row, -1);
 
     g_object_set_data(G_OBJECT(row), "music_name", g_strdup(path));
     g_object_set_data(G_OBJECT(row), "music_duration", cast_simple_double_to_string(duration_));
@@ -400,5 +441,11 @@ add_music_to_list(
 
     g_free(link_path);
     g_free(clean_uri);
+
+    
+    g_signal_handlers_disconnect_by_func(list_box, G_CALLBACK(play_selected_music), widgets_data);
+    g_signal_connect(list_box, "row-activated", G_CALLBACK(play_selected_music), widgets_data);
+
+
     return TRUE;
 }

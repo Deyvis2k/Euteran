@@ -2,7 +2,7 @@
 <interface>
     <requires lib="gtk" version="4.0"/>
     <requires lib="Adw" version="1.0"/>
-    <object class="GtkWindow" id="Euteran-audio_window">
+    <object class="AdwWindow" id="Euteran-audio_window">
         <property name="title">Euteran-Top</property>
         <property name="resizable">True</property>
         <property name="can-focus">True</property>
@@ -15,16 +15,37 @@
                 <property name="spacing">10</property>
                 <style>
                     <class name="main_box"/>
+            </style>
+            <child>
+            <object class="AdwHeaderBar" id="header_bar">
+                <property name="show-start-title-buttons">False</property>
+                <property name="show-title">False</property>
+                <style>
+                    <class name="header_bar"/>
                 </style>
-                <child>
-                    <object class="GtkLabel" id="sink_label">
-                        <property name="label">Sink</property>
-                        <property name="xalign">0</property>
-                        <property name="halign">start</property>
-                        <property name="margin_start">15</property>
-                        <property name="margin_top">30</property>
-                    </object>
-                </child>
+            </object>
+            </child>
+            <child>
+                <object class="GtkBox" id="sink_box">
+                <property name="orientation">horizontal</property>
+                <property name="spacing">10</property>
+                <property name="margin-start">10</property>
+                <property name="margin-top">10</property>
+                <property name="valign">center</property>
+                    <child>
+                        <object class="GtkImage" id="sink_icon">
+                            <property name="icon_name">speaker</property>
+                            <property name="halign">start</property>
+                            <property name="valign">center</property>
+                        </object>
+                    </child>
+                    <child>
+                        <object class="GtkLabel" id="sink_label">
+                            <property name="label">Output</property>
+                        </object>
+                    </child>
+                </object>
+            </child>
                 <child>
                     <object class="GtkBox" id="sink_section">
                         <property name="orientation">vertical</property>
@@ -45,11 +66,23 @@
                     </object>
                 </child>
                 <child>
-                    <object class="GtkLabel" id="source_label">
-                        <property name="label">Source</property>
-                        <property name="xalign">0</property>
-                        <property name="halign">start</property>
-                        <property name="margin_start">15</property>
+                    <object class="GtkBox" id="source_box">
+                        <property name="orientation">horizontal</property>
+                        <property name="spacing">10</property>
+                        <property name="margin-start">10</property>
+                        <property name="valign">center</property>
+                        <child>
+                            <object class="GtkImage" id="source_icon">
+                                <property name="icon_name">microphone</property>
+                                <property name="halign">start</property>
+                                <property name="valign">center</property>
+                            </object>
+                        </child>
+                        <child>
+                            <object class="GtkLabel" id="source_label">
+                                <property name="label">Input</property>
+                            </object>
+                        </child>
                     </object>
                 </child>
                 <child>
@@ -74,18 +107,18 @@
                 </child>
                 <child>
                     <object class="AdwClamp" id="sink_clamp">
-                        <property name="maximum-size">600</property>
+                        <property name="maximum-size">900</property>
                         <property name="margin-top">16</property>
                         <child>
-                            <object class="GtkLabel" id="sink_box">
+                            <object class="GtkLabel" id="confirm_label">
                                 <property name="label">
-Click on confirm to synchronize the sink and source 
-Note that this will create a new sink and source with the same name.
+Click on confirm to synchronize the input and output.
+Note that this will create a virtual device synchronizing the selected audio devices.
                                 </property>
                                 <property name="halign">center</property>
                                 <property name="justify">center</property>
                                 <property name="valign">center</property>
-                                <property name="wrap">True</property>
+                                <property name="ellipsize">end</property>
                                 <style>
                                     <class name="label_devices_class"/>
                                 </style>

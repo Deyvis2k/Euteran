@@ -1,6 +1,10 @@
 @import "colors.css";
 
 
+.new_window_devices_class{
+    background-color: rgba(48,48,48,0.6);
+}
+
 .box_sinks_class{
     border-radius: 4px;
     border: 0.8px ridge floralwhite;

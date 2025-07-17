@@ -19,11 +19,13 @@ endif()
 pkg_check_modules(GTK REQUIRED gtk4)
 pkg_check_modules(ADWAITA REQUIRED libadwaita-1)
 pkg_check_modules(MPG123 REQUIRED libmpg123)
+pkg_check_modules(JSONGLIB REQUIRED json-glib-1.0)
 
 include_directories(
     ${GTK_INCLUDE_DIRS}
     ${ADWAITA_INCLUDE_DIRS}
     ${MPG123_INCLUDE_DIRS}
+    ${JSONGLIB_INCLUDE_DIRS}
     src
 )
 
@@ -43,8 +45,12 @@ if(UNIX AND NOT APPLE)
         src/e_logs.c
         src/audio_devices.c
         src/e_commandw.c
+        src/euteran_dialogs.c
         src/widgets_devices.c
         src/widget_properties.c
+        src/wav/dr_wav.c
+        src/euteran_main_object.c
+        src/euteran_settings.c
         src/ogg/stb_vorbis.c
     )
 elseif(WIN32)
@@ -52,6 +58,7 @@ elseif(WIN32)
         main.c
         src/utils.c
         src/ogg/stb_vorbis.c
+        src/euteran_wav.c
     )
 endif()
 
@@ -64,6 +71,7 @@ target_link_libraries(Euteran
     ${GTK_LIBRARIES}
     ${ADWAITA_LIBRARIES}
     ${MPG123_LIBRARIES}
+    ${JSONGLIB_LIBRARIES}
     m
 )
 
