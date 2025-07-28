@@ -1,16 +1,14 @@
-#include "utils.h"
-#include "constants.h"
-#include "e_commandw.h"
-#include "e_logs.h"
+#include "eut_utils.h"
+#include "eut_constants.h"
+#include "eut_async.h"
+#include "eut_logs.h"
+#include "eut_audiolinux.h"
 #include <dirent.h>
 #include <string.h>
 #include <stdlib.h>
 #include <math.h>
 #include <ctype.h>
 #include <sys/stat.h>
-#include "audio.h"
-#include "json-glib/json-glib.h"
-
 
 double* seconds_to_minute(double music_duration) {
     int min = music_duration * MINUTE_CONVERT;
@@ -178,7 +176,7 @@ void remove_if_not_number(char* str){
     char* read = str;
     char* write = str;
     while(*read){
-        if(isdigit((unsigned char)*read)){
+        if(isdigit((unsigned char)*read) || *read == '.'){
             *write++ = *read;
         }
         read++;
@@ -241,18 +239,40 @@ char* get_within_quotes(const char* str) {
 double
 formatted_string_to_double(const char *str)
 {
-    // formatted like 1m30s goes to 90s
-    char *end;
-    double value = strtod(str, &end);
-    if (end == str) {
-        return -1;
+    if(strchr(str, 'm') == NULL && strchr(str, 'h') == NULL){
+        log_warning("String inválida: %s", str);
+        char *end_ptr;
+        double value = strtod(str, &end_ptr);
+        return value;
     }
-    if (*end == 'm') {
-        return value * 60;
-    }
+    
 
-    if(*end == 'h'){
-        return value * 3600;
+
+    char temp[10] = {0};
+    double value = 0;
+    double multiplier = 1;
+    for (const char *c = str; *c != '\0'; c++) {
+        if(!isdigit((unsigned char)*c)){
+            double val = strtod(temp, NULL);
+            if(strcmp(str, "1m40s") == 0){
+                log_info("temp: %s", temp);
+            }
+            if(*c == 'm'){
+                multiplier = 60;
+                val *= multiplier;
+            }
+            else if(*c == 'h'){
+                multiplier = 3600;
+                val *= multiplier;
+            }
+
+            temp[0] = '\0';
+            value += val;
+        }
+        else{
+            strcat(temp, c);
+        }
     }
+    
     return value;
 }

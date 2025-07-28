@@ -1,15 +1,18 @@
-#include "widget_properties.h"
-#include "audio.h"
-#include "e_commandw.h"
-#include "e_logs.h"
-#include "e_widgets.h"
-#include "constants.h"
-#include "euteran_main_object.h"
+#include "eut_widgetsfunctions.h"
+#include "eut_audiolinux.h"
+#include "eut_audioinput.h"
+#include "eut_async.h"
+#include "eut_logs.h"
+#include "eut_musiclistfunc.h"
+#include "eut_constants.h"
+#include "eut_main_object.h"
+#include "eut_utils.h"
+#include "eut_settings.h"
 #include "gio/gio.h"
 #include "glib.h"
 #include "gtk/gtk.h"
-#include "utils.h"
-#include "euteran_settings.h"
+
+guint input_slider_id = 0;
 
 typedef struct{
     gboolean *delay_protect;
@@ -25,11 +28,11 @@ void play_audio_task(
 {
     EuteranMainAudio *data = (EuteranMainAudio *) g_task_get_task_data(task);
     if (!data) {
-        printf("Error: no filename\n");
+        log_error("Error: no filename");
         return;
     }
-    if(!cancellable){
-        printf("Error: no cancellable\n");
+    if(g_task_return_error_if_cancelled(task)){
+        log_error("Error: no cancellable\n");
         return;
     }
     play_audio(data);
@@ -47,10 +50,10 @@ void on_task_completed(GObject *source_object, GAsyncResult *res, gpointer user_
         EuteranMainAudio *audio_data = g_task_get_task_data(task);
         if(audio_data){
             log_info("Começando limpeza de recursos.");
+            // euteran_main_object_set_optional_pointer_object(user_data, NULL);
             cleanup_process(audio_data);
         }
-        g_object_unref(task); 
-        task = NULL;
+        
     }
     log_message("Task finalizada e recursos liberados.");
 }
@@ -59,7 +62,17 @@ gboolean pause_audio(GtkWidget *button, gpointer user_data) {
     EuteranMainObject *data = (EuteranMainObject *)user_data;
     GtkWidget *window = GTK_WIDGET(euteran_main_object_get_widget_at(data, WINDOW_PARENT));
 
-    EuteranMainAudio *audio_data = g_task_get_task_data(current_task);
+    AsyncOperationContext *op = euteran_main_object_get_optional_pointer_object(data);
+    g_return_val_if_fail(op != NULL, FALSE);
+
+    g_return_val_if_fail(
+        op->type == OP_OUTPUT_PLAY && G_IS_TASK(op->task),
+        FALSE
+    );
+
+    EuteranMainAudio *audio_data = g_task_get_task_data(op->task);
+
+
     g_return_val_if_fail(audio_data != NULL, FALSE);
 
     g_mutex_lock(&audio_data->paused_mutex);
@@ -81,7 +94,15 @@ gboolean interrupt_audio(GtkWidget *button, gpointer user_data) {
     GtkWidget *stop_button = GTK_WIDGET(euteran_main_object_get_widget_at(data, STOP_BUTTON));
     if (!GTK_IS_BUTTON(stop_button)) return FALSE;
 
-    EuteranMainAudio *audio_data = g_task_get_task_data(current_task);
+    AsyncOperationContext *op = euteran_main_object_get_optional_pointer_object(data);
+    g_return_val_if_fail(op != NULL, FALSE);
+
+    g_return_val_if_fail(
+        op->type == OP_OUTPUT_PLAY && G_IS_TASK(op->task),
+        FALSE
+    );
+
+    EuteranMainAudio *audio_data = g_task_get_task_data(op->task);
     g_return_val_if_fail(audio_data != NULL, FALSE);
 
     g_mutex_lock(&audio_data->paused_mutex);
@@ -99,11 +120,14 @@ gboolean interrupt_audio(GtkWidget *button, gpointer user_data) {
 }
 
 gboolean update_progress_bar(gpointer user_data) {
-    EuteranMainObject *wd = (EuteranMainObject *)user_data;
+    AsyncOperationContext *context = (AsyncOperationContext *)user_data;
     g_return_val_if_fail(
-        euteran_main_object_is_valid(wd),
+        context != NULL && context->task != NULL && G_IS_TASK(context->task),
         G_SOURCE_REMOVE
     );
+
+    EuteranMainObject *wd = (EuteranMainObject *)context->main_object_ref;
+    if (!wd) return G_SOURCE_REMOVE;
 
     GtkWidget *progress_bar = GTK_WIDGET(euteran_main_object_get_widget_at(wd, PROGRESS_BAR));
     if (!GTK_IS_RANGE(progress_bar)) return G_SOURCE_REMOVE;
@@ -111,10 +135,8 @@ gboolean update_progress_bar(gpointer user_data) {
     GtkWidget *window = GTK_WIDGET(euteran_main_object_get_widget_at(wd, WINDOW_PARENT));
     if (!GTK_IS_WINDOW(window)) return G_SOURCE_REMOVE;
 
-    EuteranMainAudio *audio_data = NULL;
-    if(current_task && G_IS_TASK(current_task)) 
-        audio_data = g_task_get_task_data(current_task);
-    else{
+    EuteranMainAudio *audio_data = g_task_get_task_data(context->task);
+    if(!audio_data) {
         progress_timer_id = 0;
         return G_SOURCE_REMOVE;
     }
@@ -161,6 +183,24 @@ play_selected_music(
 {
     g_return_if_fail(row != NULL && user_data != NULL);
 
+    EuteranMainObject *wd = (EuteranMainObject *)user_data;
+
+    if(euteran_main_object_get_optional_pointer_object(wd)){
+        AsyncOperationContext *operation_data = euteran_main_object_get_optional_pointer_object(wd);
+        if(operation_data->type == OP_INPUT_RECORDING){
+            log_error("Input recording in progress");
+            return;
+        } else if(operation_data->type == OP_OUTPUT_PLAY){
+            if(operation_data->cancellable) {
+                g_cancellable_cancel(operation_data->cancellable);
+                g_clear_object(&operation_data->cancellable);
+            }
+            g_object_unref(operation_data->task);
+            operation_data->task = NULL;
+            operation_data->type = OP_NONE;
+        }
+    }
+
     GtkWidget *box_child = gtk_list_box_row_get_child(row);
     GtkWidget *label = gtk_widget_get_first_child(box_child);
     GtkWidget *music_label = gtk_widget_get_last_child(box_child);
@@ -169,21 +209,14 @@ play_selected_music(
     const char *filename = gtk_label_get_text(GTK_LABEL(label));
     const char *music_duration_str = gtk_label_get_text(GTK_LABEL(music_label));
     gchar *full_path = g_strconcat(SYM_AUDIO_DIR, filename, NULL);
-    //see if filename exists in SYM_AUDIO_DIR
     g_return_if_fail(filename && *filename && music_duration_str && *music_duration_str && g_file_test(full_path, G_FILE_TEST_EXISTS));
 
     g_free(full_path);
 
-    EuteranMainObject *wd = (EuteranMainObject *)user_data;
     GtkWidget *progress_bar = GTK_WIDGET(euteran_main_object_get_widget_at(wd, PROGRESS_BAR));
     GtkWidget *volume_slider = GTK_WIDGET(euteran_main_object_get_widget_at(wd, VOLUME_SLIDER));
     g_return_if_fail(GTK_IS_RANGE(progress_bar) && GTK_IS_RANGE(volume_slider));
-
-    if (current_cancellable) {
-        g_cancellable_cancel(current_cancellable);
-        g_clear_object(&current_cancellable);
-    }
-
+    
     if (progress_timer_id != 0) {
         if (!g_source_remove(progress_timer_id)) {
             log_error("Erro ao remover progress_timer_id");
@@ -213,7 +246,9 @@ play_selected_music(
     euteran_settings_set_last_volume(current_settings_singleton, (float)gtk_range_get_value(GTK_RANGE(volume_slider)));
 
     snprintf(actual_data->filename, sizeof(actual_data->filename), "%s%s", SYM_AUDIO_DIR, filename);
-    actual_data->music_duration = string_to_double(g_object_get_data(G_OBJECT(row), "music_duration"));
+    char* end_ptr;
+    char *duration = g_object_get_data(G_OBJECT(row), "music_duration");
+    actual_data->music_duration = strtod(duration, &end_ptr);
 
     euteran_main_object_set_duration(wd, actual_data->music_duration);
     euteran_main_object_set_offset_time(wd, 0.0);
@@ -224,11 +259,9 @@ play_selected_music(
     EuteranMainAudio *audio_data_main = g_new0(EuteranMainAudio, 1);
     audio_data_main->task_data = actual_data;
 
-    current_cancellable = g_cancellable_new();
-    audio_data_main->cancellable = current_cancellable;
-
-
-
+    euteran_main_object_set_cancellable(wd, g_cancellable_new());
+    audio_data_main->cancellable = euteran_main_object_get_cancellable(wd);
+    
     if(!audio_data_main              ||
        !audio_data_main->cancellable ||
        !audio_data_main->task_data
@@ -237,20 +270,28 @@ play_selected_music(
         return;
     }
 
-    if(current_task && G_IS_TASK(current_task)){
-        g_object_unref(current_task); 
-        current_task = NULL;
-    }
-
-    
-
-    current_task = g_task_new(NULL, current_cancellable, on_task_completed, NULL);
-    g_object_ref(current_task);
+    GTask *current_task = g_task_new(NULL, euteran_main_object_get_cancellable(wd), on_task_completed, wd);
     g_task_set_task_data(current_task, audio_data_main, NULL);
     g_task_set_check_cancellable(current_task, TRUE);
     g_task_run_in_thread(current_task, play_audio_task);
 
-    progress_timer_id = g_timeout_add(100, update_progress_bar, wd);
+    
+    AsyncOperationContext *context = g_new0(AsyncOperationContext, 1);
+    context->cancellable = euteran_main_object_get_cancellable(wd);
+    context->task = current_task;
+    context->type = OP_OUTPUT_PLAY;
+    context->main_object_ref = wd;
+
+
+    euteran_main_object_set_optional_pointer_object(wd, context);
+
+    progress_timer_id = g_timeout_add_full(
+        G_PRIORITY_DEFAULT,
+        100,
+        update_progress_bar,
+        context,
+        g_free
+    );
 }
 
 gboolean on_drop(
@@ -288,10 +329,6 @@ void on_window_destroy(GtkWidget *widget, gpointer user_data) {
     if (user_data) {
         EuteranMainObject *widgets_data = (EuteranMainObject *)user_data;
 
-        if(current_task){
-            g_cancellable_cancel(current_cancellable);
-            g_clear_object(&current_cancellable);
-        }
         EuteranSettings *current_settings_singleton = euteran_settings_get();
         euteran_settings_save(current_settings_singleton, GTK_WINDOW(euteran_main_object_get_widget_at(widgets_data, WINDOW_PARENT)));
         euteran_main_object_save_data_json(widgets_data);
@@ -331,11 +368,20 @@ gboolean on_clicked_progress_bar(
         log_error("WD does not exist");
         return TRUE;
     }
-    EuteranMainAudio *audio_data = NULL;
-    if(current_task != NULL && G_IS_TASK(current_task)){
-        audio_data = g_task_get_task_data(current_task);
-    }else{
-        log_error("Current task does not exist");
+    AsyncOperationContext *operation_data = euteran_main_object_get_optional_pointer_object(wd);
+    if(!operation_data){
+        log_error("Operation data does not exist");
+        return TRUE;
+    }
+
+    if(operation_data->type != OP_OUTPUT_PLAY){
+        log_error("Operation data type is not OP_OUTPUT_PLAY");
+        return TRUE;
+    }
+
+    EuteranMainAudio *audio_data = g_task_get_task_data(operation_data->task);
+
+    if(!audio_data){
         return TRUE;
     }
         
@@ -733,4 +779,187 @@ on_stack_switcher_right_click(
 
         
     }
+}
+
+static void
+on_input_recording_finished(GObject *source_object, GAsyncResult *res, gpointer user_data)
+{
+    GTask *task = G_TASK(res);
+    EuteranMainObject *main_op = (EuteranMainObject *)source_object;
+
+    if(!main_op || !EUTERAN_IS_MAIN_OBJECT(main_op)){
+        log_error("Error: main_op does not exist");
+        return;
+    }
+
+    EuteranInputAudio *audio_data = g_task_get_task_data(task);
+    GError *error = NULL;
+
+    gboolean success = g_task_propagate_boolean(task, &error);
+
+    if (!success) {
+        log_error("Erro ao finalizar gravação: %s", error->message);
+        g_clear_error(&error);
+    }
+
+    if (audio_data) {
+        gtk_range_set_value(GTK_RANGE(audio_data->passed_data), 0);
+        audio_data->passed_data = NULL;
+        g_free(audio_data);
+    }
+
+    AsyncOperationContext *op = euteran_main_object_get_optional_pointer_object(main_op);
+    if (op) {
+        op->task = NULL;
+        op->cancellable = NULL;
+        op->type = OP_NONE;
+    }
+
+    euteran_main_object_set_optional_pointer_object(main_op, NULL);
+
+    log_message("Gravação de áudio finalizada em %s.", __FUNCTION__);
+}
+
+
+
+gboolean on_clicked_input_slider(
+    GtkRange* self,
+    GtkScrollType scroll,
+    gdouble value,
+    gpointer user_data
+)
+{
+    return TRUE;
+}
+
+
+static void 
+start_audio_input_recording_cb(
+    GTask *task,
+    gpointer source_object,     
+    gpointer task_data,         
+    GCancellable *cancellable
+)
+{
+    EuteranMainObject *main_op = (EuteranMainObject *)source_object;
+    AsyncOperationContext *op = euteran_main_object_get_optional_pointer_object(main_op);
+    EuteranInputAudio *audio = task_data;
+
+    if (!op || !audio) {
+        log_error("Erro: contexto ou dados inválidos.");
+        return;
+    }
+
+    if (g_task_return_error_if_cancelled(task)) {
+        log_error("Cancelado.");
+        return;
+    }
+
+    start_audio_input_recording(op, audio);
+}
+
+
+
+static void 
+stop_audio_input_recording(
+    GtkWidget      *button, 
+    gpointer       user_data
+)
+{
+    AsyncOperationContext *op = (AsyncOperationContext *)user_data;
+    if(!op){
+        log_error("Error: op does not exist");
+        return;
+    }
+
+    if (op->cancellable) {
+        g_cancellable_cancel(op->cancellable);
+        g_clear_object(&op->cancellable);
+    }
+
+    log_message("Gravação de áudio finalizada em %s.", __FUNCTION__);
+}
+
+void start_recording_input(
+    GtkWidget *button, 
+    gpointer  user_data
+)
+{
+    EuteranMainObject *wd = (EuteranMainObject *)user_data;
+
+    if(!wd || !EUTERAN_IS_MAIN_OBJECT(wd)) {
+        log_error("WD does not exist");
+        return;
+    }
+
+
+    if(euteran_main_object_get_optional_pointer_object(wd)){
+        AsyncOperationContext *operation_data = euteran_main_object_get_optional_pointer_object(wd);
+        if(operation_data->type == OP_OUTPUT_PLAY){
+            log_error("Output play in progress");
+            return;
+        } else if(operation_data->type == OP_INPUT_RECORDING){
+            return;
+        }
+    }
+
+    if (input_slider_id != 0) {
+        if (!g_source_remove(input_slider_id)) {
+            log_error("Erro ao remover input_slider_id");
+        }
+        input_slider_id = 0;
+    }
+    
+
+    EuteranInputAudio *input_recording = g_new0(EuteranInputAudio, 1);
+    input_recording->passed_data = euteran_main_object_get_widget_at(wd, INPUT_SLIDER);
+    if(!input_recording){
+        log_error("Error creating input_recording");
+        return;
+    }
+
+
+    GtkWidget *stop_recording_button = GTK_WIDGET(euteran_main_object_get_widget_at(wd, STOP_RECORDING_BUTTON));
+    if (!GTK_IS_BUTTON(stop_recording_button)) {
+        log_error("Error: stop_recording_button not found");
+        return;
+    }
+    gtk_widget_set_visible(stop_recording_button, TRUE);
+    
+    
+    
+    euteran_main_object_set_cancellable(wd, g_cancellable_new());
+    AsyncOperationContext *operation_data = g_new0(AsyncOperationContext, 1);
+    if(!operation_data){
+        log_error("Error creating operation_data");
+        return;
+    }
+    operation_data->type = OP_INPUT_RECORDING;
+    operation_data->cancellable = euteran_main_object_get_cancellable(wd);
+    operation_data->main_object_ref = wd;
+
+    euteran_main_object_set_optional_pointer_object(wd, operation_data);
+    
+
+    GTask *new_task = g_task_new(
+        G_OBJECT(wd), 
+        operation_data->cancellable, 
+        on_input_recording_finished, 
+        operation_data
+    );
+
+    operation_data->task = new_task;
+
+    g_task_set_task_data(operation_data->task, input_recording, g_free);
+    g_task_set_check_cancellable(operation_data->task, TRUE);
+    g_task_run_in_thread(operation_data->task, start_audio_input_recording_cb);
+
+    
+
+    g_signal_connect(
+        stop_recording_button,
+        "clicked",
+        G_CALLBACK(stop_audio_input_recording),
+        operation_data
+    );
 }

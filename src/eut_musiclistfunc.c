@@ -1,13 +1,13 @@
-#include "e_widgets.h"
-#include "constants.h"
-#include "e_logs.h"
-#include "euteran_main_object.h"
+#include "eut_musiclistfunc.h"
+#include "eut_constants.h"
+#include "eut_logs.h"
+#include "eut_main_object.h"
 #include "gdk/gdk.h"
 #include "glib.h"
 #include "gtk/gtk.h"
 #include "adwaita.h"
-#include "utils.h"
-#include "audio.h"
+#include "eut_utils.h"
+#include "eut_audiolinux.h"
 
 #define _(s) (s)
 
@@ -164,15 +164,12 @@ void create_music_list(
         return;
     }
 
-    GtkWidget *child_observer = gtk_stack_get_visible_child(GTK_STACK(stack));
+    GtkWidget *scrolled_window = gtk_stack_get_visible_child(GTK_STACK(stack));
 
-    if(!child_observer){
-        log_error("Child observer nao encontrado");
+    if(!scrolled_window || !GTK_IS_SCROLLED_WINDOW(scrolled_window)){
+        log_error("Scrolled window nao encontrada");
         return;
     }
-
-    GtkWidget *scrolled_window = gtk_stack_page_get_child(GTK_STACK_PAGE(child_observer));
-
 
     GtkWidget *list_box = gtk_scrolled_window_get_child(GTK_SCROLLED_WINDOW(scrolled_window));
 
@@ -186,7 +183,6 @@ void create_music_list(
         log_warning("Nenhuma musica encontrada");
         return;
     }
-
 
     gtk_list_box_remove_all(GTK_LIST_BOX(list_box));
 
@@ -220,7 +216,7 @@ void create_music_list(
         music_container->window_parent = GTK_WIDGET(euteran_main_object_get_widget_at(widgets_data, WINDOW_PARENT));
         music_container->row = row;
         music_container->row_box = row_box;
-        music_container->list_box = GTK_WIDGET(euteran_main_object_get_widget_at(widgets_data, LIST_BOX));
+        music_container->list_box = list_box;
         
         gtk_widget_add_controller(music_container->row_box, GTK_EVENT_CONTROLLER(event_mouse));
         g_signal_connect(event_mouse, "pressed", G_CALLBACK(on_pressed_right_click_event), music_container);
@@ -250,11 +246,10 @@ void create_music_list(
         gtk_box_append(GTK_BOX(row_box), duration);
 
         gtk_list_box_row_set_child(GTK_LIST_BOX_ROW(row), row_box);
-        gtk_list_box_insert(GTK_LIST_BOX(euteran_main_object_get_widget_at(widgets_data, LIST_BOX)), row, -1);
+        gtk_list_box_insert(GTK_LIST_BOX(list_box), row, -1);
 
         g_object_set_data(G_OBJECT(row), "music_name", temp_music->name);
-        g_object_set_data(G_OBJECT(row), "music_duration",
-                          cast_simple_double_to_string(temp_music->duration));
+        g_object_set_data(G_OBJECT(row), "music_duration", g_strdup_printf("%.2f", temp_music->duration));
 
         g_object_set_data_full(
             G_OBJECT(row),
@@ -266,8 +261,8 @@ void create_music_list(
 
     g_list_free(new_music_list);
 
-    g_signal_handlers_disconnect_by_func(GTK_WIDGET(euteran_main_object_get_widget_at(widgets_data, LIST_BOX)), G_CALLBACK(play_selected_music), widgets_data);
-    g_signal_connect(GTK_WIDGET(euteran_main_object_get_widget_at(widgets_data, LIST_BOX)), "row-activated", G_CALLBACK(play_selected_music), widgets_data);
+    g_signal_handlers_disconnect_by_func(list_box, G_CALLBACK(play_selected_music), widgets_data);
+    g_signal_connect(list_box, "row-activated", G_CALLBACK(play_selected_music), widgets_data);
 }
 
 gboolean 
@@ -431,7 +426,7 @@ add_music_to_list(
     gtk_list_box_insert(GTK_LIST_BOX(list_box), row, -1);
 
     g_object_set_data(G_OBJECT(row), "music_name", g_strdup(path));
-    g_object_set_data(G_OBJECT(row), "music_duration", cast_simple_double_to_string(duration_));
+    g_object_set_data(G_OBJECT(row), "music_duration", g_strdup_printf("%.2f", duration_));
     g_object_set_data_full(
         G_OBJECT(row),
         "music_container",

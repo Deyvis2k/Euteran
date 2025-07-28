@@ -1,7 +1,7 @@
-#include "audio_devices.h"
-#include "utils.h"
+#include "eut_audiodevices.h"
+#include "eut_utils.h"
 #include <ctype.h>
-#include "e_logs.h"
+#include "eut_logs.h"
 
 GList* get_command_output(const char* command){
     FILE *pipe = popen(command, "r");

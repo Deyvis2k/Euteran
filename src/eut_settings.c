@@ -1,6 +1,6 @@
-#include "euteran_settings.h"
-#include "constants.h"
-#include "e_logs.h"
+#include "eut_settings.h"
+#include "eut_constants.h"
+#include "eut_logs.h"
 
 struct _EuteranSettings {
     GObject parent_instance;

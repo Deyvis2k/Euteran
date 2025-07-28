@@ -20,3 +20,22 @@ void monitor_audio_dir(
     const gchar     *audio_dir,
     gpointer        user_data
 );
+
+
+typedef enum{
+    OP_NONE,
+    OP_INPUT_RECORDING,
+    OP_OUTPUT_PLAY
+} OperatinType;
+
+typedef struct{
+    GCancellable *cancellable;
+    GTask        *task;
+    OperatinType type;
+    void         *main_object_ref;
+    void         *user_data;
+} AsyncOperationContext;
+
+
+void
+free_context(AsyncOperationContext *context);

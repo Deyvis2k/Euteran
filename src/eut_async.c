@@ -1,5 +1,5 @@
-#include "e_commandw.h"
-#include "e_logs.h"
+#include "eut_async.h"
+#include "eut_logs.h"
 
 
 
@@ -34,4 +34,26 @@ void run_subprocess_async(const gchar *command_str,
     ctx->user_data = user_data;
 
     g_subprocess_wait_async(proc, NULL, subprocess_wrapper_callback, ctx);
+}
+
+
+void 
+free_context(AsyncOperationContext *context)
+{
+    if (!context) return;
+
+    if(context->cancellable){
+        g_cancellable_cancel(context->cancellable);
+        g_clear_object(&context->cancellable);
+    }
+    if(context->task){
+        g_object_unref(context->task);
+        context->task = NULL;
+    }
+    if(context->main_object_ref) context->main_object_ref = NULL;
+    context->type = OP_NONE;
+    g_free(context);
+
+
+    log_warning("Context freed");
 }

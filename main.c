@@ -1,14 +1,13 @@
-#include <gtk/gtk.h>
+#include "src/eut_main_object.h"
+#include "src/eut_logs.h"
+#include "src/eut_widgetsfunctions.h"
+#include "src/eut_async.h"
+#include "src/eut_subwindow.h"
+#include "src/eut_foldercb.h"
+#include "src/eut_constants.h"
+#include "src/eut_settings.h"
+#include "src/eut_utils.h"
 #include "adwaita.h"
-#include "euteran_main_object.h"
-#include "src/e_logs.h"
-#include "src/ewindows.h"
-#include "src/widget_properties.h"
-#include "src/e_commandw.h"
-#include "src/widgets_devices.h"
-#include "src/constants.h"
-#include "src/euteran_settings.h"
-#include "utils.h"
 
 static void 
 on_activate
@@ -21,8 +20,6 @@ on_activate
 
     EuteranMainObject *widgets_data = euteran_main_object_new();
     euteran_main_object_autoinsert(widgets_data, builder);
-    euteran_main_object_set_optional_pointer_object(widgets_data, play_selected_music);
-
     GtkWidget *window = (GtkWidget *)euteran_main_object_get_widget_at(widgets_data, WINDOW_PARENT);
     GtkWidget *menu_button = BUILDER_GET(builder, "menu_button");
 
@@ -37,13 +34,13 @@ on_activate
 
 
     GtkWidget *button_select_folder = BUILDER_GET(builder, "button_select_folder");
-    GtkWidget *button_bindings = BUILDER_GET(builder, "button_bindings");
     GtkWidget *button_devices = BUILDER_GET(builder, "button_devices");
 
     g_signal_connect(button_select_folder, "clicked", G_CALLBACK(select_folder), widgets_data);
     g_signal_connect(button_devices, "clicked", G_CALLBACK(construct_widget), widgets_data);
 
     EuteranSettings *current_settings_singleton = euteran_settings_get();
+
 
     gtk_window_set_default_size(GTK_WINDOW(window), euteran_settings_get_window_width(current_settings_singleton),
                                 euteran_settings_get_window_height(current_settings_singleton));
@@ -78,8 +75,10 @@ on_activate
     
     g_signal_connect(target, "drop", G_CALLBACK (on_drop), widgets_data);
     g_signal_connect(euteran_main_object_get_widget_at(widgets_data, PROGRESS_BAR), "change-value", G_CALLBACK(on_clicked_progress_bar), widgets_data);
+    g_signal_connect(euteran_main_object_get_widget_at(widgets_data, INPUT_SLIDER), "change-value", G_CALLBACK(on_clicked_input_slider), widgets_data);
     g_signal_connect(euteran_main_object_get_widget_at(widgets_data, VOLUME_SLIDER), "value-changed", G_CALLBACK(on_volume_changed), widgets_data);
     g_signal_connect(euteran_main_object_get_widget_at(widgets_data, MUSIC_BUTTON), "clicked", G_CALLBACK(pause_audio), widgets_data);
+    g_signal_connect(euteran_main_object_get_widget_at(widgets_data, INPUT_BUTTON), "clicked", G_CALLBACK(start_recording_input), widgets_data);
     g_signal_connect(euteran_main_object_get_widget_at(widgets_data, STOP_BUTTON), "clicked", G_CALLBACK(interrupt_audio), widgets_data);
     g_signal_connect(euteran_main_object_get_widget_at(widgets_data, WINDOW_PARENT), "unrealize", G_CALLBACK(on_window_destroy), widgets_data);
     g_signal_connect(euteran_main_object_get_widget_at(widgets_data, SWITCHER_ADD_BUTTON), "clicked", G_CALLBACK(on_switcher_add_button), widgets_data);
@@ -95,7 +94,7 @@ on_activate
 
 int main(int argc, char *argv[]) {
     adw_init();
-    AdwApplication *app = adw_application_new("com.deyvis2k.Euteran", G_APPLICATION_DEFAULT_FLAGS);
+    AdwApplication *app = adw_application_new("Deyvis2k.Euteran", G_APPLICATION_DEFAULT_FLAGS);
     g_signal_connect(app, "activate", G_CALLBACK(on_activate), NULL);
     int status = g_application_run(G_APPLICATION(app), argc, argv);
     g_object_unref(app);

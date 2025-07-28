@@ -1,6 +1,6 @@
-#include "euteran_dialogs.h"
+#include "eut_dialogs.h"
 #include "adwaita.h"
-#include "e_logs.h"
+#include "eut_logs.h"
 #include "glib/gstdio.h"
 
 #define _(str) (str)

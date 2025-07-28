@@ -1,7 +1,7 @@
-#ifndef EUTERAN_MAIN_OBJECT_H
-#define EUTERAN_MAIN_OBJECT_H
+#ifndef EUT_MAIN_OBJECT_H
+#define EUT_MAIN_OBJECT_H
 
-#include "utils.h"
+#include "eut_utils.h"
 #include <glib-object.h>
 #include <gtk/gtk.h>
 
@@ -32,6 +32,9 @@ void euteran_main_object_set_optional_pointer_object(EuteranMainObject *self, vo
 void *euteran_main_object_get_optional_pointer_object(EuteranMainObject *self);
 void euteran_main_object_save_data_json(EuteranMainObject *self);
 void euteran_main_object_load_and_apply_data_json(EuteranMainObject *self, PlayMusicFunc play_music_func);
+GCancellable *euteran_main_object_get_cancellable(EuteranMainObject *self);
+void euteran_main_object_set_cancellable(EuteranMainObject *self, GCancellable *cancellable);
+void euteran_main_object_reset_cancellable(EuteranMainObject *self);
 GtkWidget*
 euteran_main_object_get_list_box
 (
@@ -43,6 +46,7 @@ euteran_main_object_get_list_box
 typedef struct{
     const gchar *music_path;
     const gchar *music_duration;
+    const gchar *music_duration_raw;
 } MusicDataSave;
 
 typedef struct {

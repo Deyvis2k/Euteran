@@ -2,7 +2,51 @@
 
 
 .new_window_devices_class{
-    background-color: rgba(48,48,48,0.6);
+    background-color: rgba(48,48,48,0.9);
+    min-width: 500px;
+}
+
+.main_header_bar{
+    background-color: rgba(48,48,48,0.9);
+    border: none;
+    box-shadow: none;
+    padding: 0px;
+    border-color: transparent;
+    caret-color: transparent;
+    outline-color: transparent;
+    background-image: none;
+}
+
+.main_header_bar windowhandle{
+    border: none;
+    box-shadow: none;
+    border-color: transparent;
+    caret-color: transparent;
+    outline-color: transparent;
+}
+
+.main_header_bar headerbar windowhandle{
+    border: none;
+    box-shadow: none;
+    border-color: transparent;
+    caret-color: transparent;
+    outline-color: transparent;
+}
+
+.main_header_bar windowhandle box{
+    border: none;
+    box-shadow: none;
+    border-color: transparent;
+    caret-color: transparent;
+    outline-color: transparent;
+}
+
+.main_header_bar box widget{
+    border: none;
+    box-shadow: none;
+    border-color: transparent;
+    caret-color: transparent;
+    outline-color: transparent;
 }
 
 .box_sinks_class{
@@ -26,7 +70,6 @@
 .container_real_devices_class{
     border-radius: 4px;
     border: 0.3px ridge floralwhite;
-    background-color: rebeccapurple;
 }
 
 .list_box_sources_class{
@@ -37,11 +80,6 @@
     font-size: 12px;
 }
 .box_container_main_class{
-    opacity: 0.8;
+    /* opacity: 0.8; */
     border-radius: 4px;
 }
-
-.grid_devices_class{
-    background-color: lavender;
-}
-

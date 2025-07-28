@@ -3,7 +3,7 @@
 #include <mpg123.h>
 #include <gtk/gtk.h>
 #include "ogg/stb_vorbis.h"
-#include "constants.h"
+#include "eut_constants.h"
 #include <pipewire/pipewire.h>
 #include "wav/dr_wav.h"
 

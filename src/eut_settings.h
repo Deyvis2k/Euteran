@@ -1,5 +1,5 @@
-#ifndef EUTERAN_SETTINGS_H
-#define EUTERAN_SETTINGS_H 
+#ifndef EUT_SETTINGS_H
+#define EUT_SETTINGS_H 
 
 #include <glib-object.h>
 #include <gtk/gtk.h>

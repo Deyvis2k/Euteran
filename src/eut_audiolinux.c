@@ -1,14 +1,12 @@
-#include "audio.h"
+#include "eut_audiolinux.h"
 #include "ogg/stb_vorbis.h"
 #include "pipewire/keys.h"
 #include "pipewire/stream.h"
 #include <mpg123.h>
 #include <spa/param/audio/format-utils.h>
-#include "e_logs.h"
-#include "widget_properties.h"
-#include "euteran_settings.h"
-
-gpointer audio_data_ptr = NULL;
+#include "eut_logs.h"
+#include "eut_widgetsfunctions.h"
+#include "eut_settings.h"
 
 GetDurationFunc get_duration_functions[MAX_MUSIC_TYPES] = {get_duration_mp3, get_duration_ogg, get_duration_wav};
 SetupAudioFunc setup_audio_functions[MAX_MUSIC_TYPES] = {setup_audio_mp3, setup_audio_ogg, setup_audio_wav};
@@ -149,13 +147,6 @@ static void on_process(void *userdata) {
         return;
     }
 
-    if(!data->cancellable){
-        log_error("Invalid cancellable");
-        data->loop_stopped = TRUE;
-        if(data->loop) pw_main_loop_quit(data->loop);
-        return;
-    }
-    
     if (g_cancellable_is_cancelled(data->cancellable) && !data->loop_stopped) {
         log_info("Cancelando áudio, aguarde...");
         data->loop_stopped = TRUE;

@@ -1,3 +1,4 @@
+
 <?xml version="1.0" encoding="UTF-8"?>
 <interface>
   <requires lib="gtk" version="4.0"/>
@@ -53,13 +54,8 @@
                           </object>
                         </child>
                         <child>
-                          <object class="GtkButton" id="button_bindings">
-                            <property name="label">Bindings</property>
-                          </object>
-                        </child>
-                        <child>
                           <object class="GtkButton" id="button_devices">
-                            <property name="label">Devices</property>
+                            <property name="label">Settings</property>
                           </object>
                         </child>
                       </object>
@@ -102,8 +98,8 @@
                 </child>
                 <child>
                   <object class="GtkButton" id="switcher_add_button">
-                  <property name="icon-name">list-add-symbolic</property>
-                  <property name="vexpand">False</property>
+                    <property name="icon-name">list-add-symbolic</property>
+                    <property name="vexpand">False</property>
                     <style>
                       <class name="switcher_add_button"/>
                     </style>
@@ -120,88 +116,218 @@
                 <style>
                   <class name="main_box"/>
                 </style>
-
-                <!-- CLAMP com controles de música -->
                 <child>
-                  <object class="AdwClamp" id="music_clamp">
+                  <!-- Grid para Input/Output com proporções responsivas -->
+                  <object class="GtkGrid" id="music_display_content">
+                    <property name="hexpand">True</property>
+                    <property name="column-homogeneous">False</property>
+                    <property name="row-homogeneous">False</property>
                     <style>
-                      <class name="clamp_music"/>
+                      <class name="music_display_content_class"/>
                     </style>
-                    <property name="child">
-                      <object class="GtkBox" id="music_display_content">
-                        <property name="orientation">horizontal</property>
-                        <style>
-                          <class name="music_display_content_class"/>
-                        </style>
 
-                        <!-- volume -->
+                    <!-- Input Section - Coluna 0, ocupa 30% -->
+                    <child>
+                      <object class="GtkBox" id="v_input_box">
+                        <property name="orientation">vertical</property>
+                        <property name="halign">baseline-fill</property>
+                        <property name="valign">center</property>
+                        <property name="hexpand">True</property>
+                        <property name="margin-start">10</property>
+                        <style>
+                          <class name="v_box_generic"/>
+                        </style>
+                        <layout>
+                          <property name="column">0</property>
+                          <property name="row">0</property>
+                          <property name="column-span">3</property>
+                        </layout>
+
+                        <!-- Label Input -->
                         <child>
-                          <object class="GtkScale" id="volume_slider">
+                          <object class="GtkLabel" id="stream_label_input">
+                            <property name="label">Input Stream</property>
+                            <property name="halign">center</property>
+                            <property name="hexpand">True</property>
+                            <property name="xalign">0</property>
+                            <style>
+                              <class name="stream_label_input"/>
+                              <class name="stream_label_generic"/>
+                            </style>
+                          </object>
+                        </child>
+
+                        <!-- Input Content -->
+                        <child>
+                          <object class="AdwClamp" id="adw_clamp_input">
+                            <property name="maximum-size">500</property>
+                            <property name="orientation">horizontal</property>
+                            <property name="child">
+                              <object class="GtkBox" id="input_box">
+                                <property name="orientation">horizontal</property>
+                                <property name="halign">fill</property>
+                                <property name="hexpand">True</property>
+                                <style>
+                                  <class name="input_box"/>
+                                </style>
+                                <child>
+                                  <object class="GtkButton" id="button_input_recording">
+                                    <property name="icon-name">audio-input-microphone</property>
+                                    <property name="margin-start">5</property>
+                                    <property name="cursor">
+                                      <object class="GdkCursor" id="input_cursor">
+                                        <property name="name">pointer</property>
+                                      </object>
+                                    </property>
+                                    <style>
+                                      <class name="music_button_class"/>
+                                    </style>
+                                  </object>
+                                </child>
+                                <child>
+                                  <object class="GtkButton" id="button_input_stop_recording">
+                                    <property name="icon-name">media-playback-stop</property>
+                                    <property name="visible">False</property>
+                                    <property name="cursor">
+                                      <object class="GdkCursor" id="stop_input_cursor">
+                                        <property name="name">pointer</property>
+                                      </object>
+                                    </property>
+                                    <style>
+                                      <class name="music_button_class"/>
+                                    </style>
+                                  </object>
+                                </child>
+                          
+
+                                <child>
+                                  <object class="GtkScale" id="input_slider">
+                                    <property name="orientation">horizontal</property>
+                                    <property name="hexpand">True</property>
+                                    <property name="halign">fill</property>
+                                    <property name="adjustment">
+                                      <object class="GtkAdjustment" id="input_scale_adjustment">
+                                        <property name="lower">0</property>
+                                        <property name="upper">1</property>
+                                        <property name="step-increment">0.01</property>
+                                      </object>
+                                    </property>
+                                    <style>
+                                      <class name="progress_bar_class"/>
+                                    </style>
+                                  </object>
+                                </child>
+                              </object>
+                            </property>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+
+                    <!-- Output Section - Coluna 3, ocupa 70% -->
+                    <child>
+                      <object class="GtkBox" id="v_output_box">
+                        <property name="orientation">vertical</property>
+                        <property name="halign">baseline-fill</property>
+                        <property name="hexpand">True</property>
+                        <property name="margin-end">20</property>
+                        <layout>
+                          <property name="column">3</property>
+                          <property name="row">0</property>
+                          <property name="column-span">10</property>
+                        </layout>
+
+                        <!-- Label Output -->
+                        <child>
+                          <object class="GtkLabel" id="stream_label_output">
+                            <property name="label">Output Stream</property>
+                            <property name="halign">center</property>
+                            <property name="hexpand">True</property>
+                            <property name="xalign">0</property>
+                            <style>
+                              <class name="stream_label_output"/>
+                              <class name="stream_label_generic"/>
+                            </style>
+                          </object>
+                        </child>
+
+                        <!-- OUTPUT Content-->
+                        <child>
+                          <object class="GtkBox" id="output_box">
                             <property name="orientation">horizontal</property>
                             <property name="halign">fill</property>
                             <property name="hexpand">True</property>
-                            <property name="adjustment">
-                              <object class="GtkAdjustment" id="scale_adjustment">
-                                <property name="lower">0</property>
-                                <property name="upper">1</property>
-                                <property name="step-increment">0.01</property>
+                            <style>
+                              <class name="output_box"/>
+                            </style>
+                            <child>
+                              <object class="GtkScale" id="volume_slider">
+                                <property name="orientation">horizontal</property>
+                                <property name="halign">fill</property>
+                                <property name="hexpand">True</property>
+                                <property name="adjustment">
+                                  <object class="GtkAdjustment" id="scale_adjustment">
+                                    <property name="lower">0</property>
+                                    <property name="upper">1</property>
+                                    <property name="step-increment">0.01</property>
+                                  </object>
+                                </property>
+                                <style>
+                                  <class name="slider_main"/>
+                                </style>
                               </object>
-                            </property>
-                            <style>
-                              <class name="slider_main"/>
-                            </style>
-                          </object>
-                        </child>
+                            </child>
 
-                        <!-- barra de progresso -->
-                        <child>
-                          <object class="GtkScale" id="progress_bar">
-                            <property name="orientation">horizontal</property>
-                            <property name="hexpand">True</property>
-                            <property name="adjustment">
-                              <object class="GtkAdjustment" id="progress_adjustment">
-                                <property name="lower">0</property>
-                                <property name="upper">1</property>
-                                <property name="step-increment">0.01</property>
+                            <!-- barra de progresso -->
+                            <child>
+                              <object class="GtkScale" id="progress_bar">
+                                <property name="orientation">horizontal</property>
+                                <property name="hexpand">True</property>
+                                <property name="halign">fill</property>
+                                <property name="adjustment">
+                                  <object class="GtkAdjustment" id="progress_adjustment">
+                                    <property name="lower">0</property>
+                                    <property name="upper">1</property>
+                                    <property name="step-increment">0.01</property>
+                                  </object>
+                                </property>
+                                <style>
+                                  <class name="progress_bar_class"/>
+                                  <class name="progress_bar_size_class"/>
+                                </style>
                               </object>
-                            </property>
-                            <style>
-                              <class name="progress_bar_class"/>
-                            </style>
-                          </object>
-                        </child>
+                            </child>
 
-                        <!-- play/pause -->
-                        <child>
-                          <object class="GtkButton" id="music_button">
-                            <property name="icon-name">media-playback-start-symbolic</property>
-                            <property name="cursor">
-                              <object class="GdkCursor" id="cursor">
-                                <property name="name">pointer</property>
+                            <!-- play/pause -->
+                            <child>
+                              <object class="GtkButton" id="music_button">
+                                <property name="icon-name">media-playback-start-symbolic</property>
+                                <property name="cursor">
+                                  <object class="GdkCursor" id="cursor">
+                                    <property name="name">pointer</property>
+                                  </object>
+                                </property>
+                                <style>
+                                  <class name="music_button_class"/>
+                                </style>
                               </object>
-                            </property>
-                            <style>
-                              <class name="music_button_class"/>
-                            </style>
-                          </object>
-                        </child>
-                            
-                        <!-- Stop Button -->
-                        <child>
-                          <object class="GtkButton" id="stop_button">
-                            <property name="icon-name">media-playback-stop-symbolic</property>
-                            <style>
-                              <class name="music_button_class"/>
-                            </style>
-                          </object>
-                        </child>
+                            </child>
 
+                            <!-- Stop Button -->
+                            <child>
+                              <object class="GtkButton" id="stop_button">
+                                <property name="icon-name">media-playback-stop-symbolic</property>
+                                <style>
+                                  <class name="music_button_class"/>
+                                </style>
+                              </object>
+                            </child>
+                          </object>
+                        </child>
                       </object>
-                    </property>
+                    </child>
                   </object>
                 </child>
-                
-                
 
                 <!-- GRUPO de preferências / conteúdo das páginas -->
                 <child>
@@ -221,6 +347,7 @@
                         <child>
                           <object class="GtkBox" id="tag_box">
                             <property name="orientation">horizontal</property>
+                            <property name="margin-top">20</property>
                             <style>
                               <class name="tag_box"/>
                             </style>
@@ -279,7 +406,7 @@
                                     <property name="min-content-height">297</property>
                                     <child>
                                       <object class="GtkListBox" id="list_box">
-                                        <property name="selection-mode">browse</property>
+                                        <property name="selection-mode">single</property>
                                         <style>
                                           <class name="list_box"/>
                                         </style>

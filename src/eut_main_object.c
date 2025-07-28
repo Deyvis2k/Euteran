@@ -1,12 +1,11 @@
-#include "euteran_main_object.h"
-#include "constants.h"
-#include "e_logs.h"
+#include "eut_main_object.h"
+#include "eut_constants.h"
+#include "eut_logs.h"
 #include "glib.h"
 #include "glib/gstdio.h"
 #include "gtk/gtk.h"
-#include "json-glib/json-glib.h"
-#include "utils.h"
-#include "euteran_dialogs.h"
+#include "eut_utils.h"
+#include "eut_dialogs.h"
 
 struct _EuteranMainObject {
     GObject parent_instance;
@@ -16,19 +15,25 @@ struct _EuteranMainObject {
     GTimer *timer;
     double offset_time;
     void *optional_object;
+    
+    // Cancellable da função atual
+    GCancellable *current_cancellable;
 };
 
 G_DEFINE_TYPE(EuteranMainObject, euteran_main_object, G_TYPE_OBJECT);
 
-static void euteran_main_object_init(EuteranMainObject *self) {
+static void 
+euteran_main_object_init(EuteranMainObject *self) {
     self->euteran_widgets_list = NULL;
     self->music_duration = 0.0;
     self->timer = g_timer_new();
     self->offset_time = 0.0;
     self->optional_object = NULL;
+    self->current_cancellable = NULL;
 }
 
-static void euteran_main_object_dispose(GObject *object) {
+static void 
+euteran_main_object_dispose(GObject *object) {
     EuteranMainObject *self = EUTERAN_MAIN_OBJECT(object);
 
     if (self->timer) {
@@ -44,7 +49,8 @@ static void euteran_main_object_dispose(GObject *object) {
     G_OBJECT_CLASS(euteran_main_object_parent_class)->dispose(object);
 }
 
-void euteran_main_object_clear(EuteranMainObject *self) {
+void 
+euteran_main_object_clear(EuteranMainObject *self) {
      g_return_if_fail(EUTERAN_IS_MAIN_OBJECT(self));
 
     if (self->euteran_widgets_list != NULL) {
@@ -76,12 +82,14 @@ euteran_main_object_is_valid(EuteranMainObject *self) {
 }
 
 
-static void euteran_main_object_class_init(EuteranMainObjectClass *klass) {
+static void 
+euteran_main_object_class_init(EuteranMainObjectClass *klass) {
     GObjectClass *object_class = G_OBJECT_CLASS(klass);
     object_class->dispose = euteran_main_object_dispose;
 }
 
-void euteran_main_object_add_widget(
+void 
+euteran_main_object_add_widget(
     EuteranMainObject *self, 
     GtkWidget *widget, 
     const gchar *name
@@ -96,7 +104,8 @@ void euteran_main_object_add_widget(
 }
 
 
-void euteran_main_object_remove_widget(EuteranMainObject *self, GtkWidget *widget) {
+void 
+euteran_main_object_remove_widget(EuteranMainObject *self, GtkWidget *widget) {
     g_return_if_fail(EUTERAN_IS_MAIN_OBJECT(self));
     g_return_if_fail(GTK_IS_WIDGET(widget));
 
@@ -153,16 +162,19 @@ euteran_main_object_autoinsert(
     }   
 }
 
-EuteranMainObject *euteran_main_object_new(void) {
+EuteranMainObject *
+euteran_main_object_new(void) {
     return g_object_new(EUTERAN_TYPE_MAIN_OBJECT, NULL);
 }
 
 
-void euteran_main_object_set_duration(EuteranMainObject *self, double duration) {
+void 
+euteran_main_object_set_duration(EuteranMainObject *self, double duration) {
     self->music_duration = duration;
 }
 
-void euteran_main_object_set_timer(EuteranMainObject *self, GTimer *timer) {
+void 
+euteran_main_object_set_timer(EuteranMainObject *self, GTimer *timer) {
     g_return_if_fail(EUTERAN_IS_MAIN_OBJECT(self));
 
     if (self->timer != NULL) {
@@ -172,142 +184,53 @@ void euteran_main_object_set_timer(EuteranMainObject *self, GTimer *timer) {
     self->timer = timer;
 }
 
-void euteran_main_object_set_offset_time(EuteranMainObject *self, double offset_time) {
+void 
+euteran_main_object_set_offset_time(EuteranMainObject *self, double offset_time) {
     self->offset_time = offset_time;
 }
 
-double euteran_main_object_get_offset_time(EuteranMainObject *self) {
+double 
+euteran_main_object_get_offset_time(EuteranMainObject *self) {
     return self->offset_time;
 }
 
-double euteran_main_object_get_duration(EuteranMainObject *self) {
+double 
+euteran_main_object_get_duration(EuteranMainObject *self) {
     return self->music_duration;
 }
 
-GTimer *euteran_main_object_get_timer(EuteranMainObject *self) {
+GTimer *
+euteran_main_object_get_timer(EuteranMainObject *self) {
     return self->timer;
 }
 
-GList *euteran_main_object_get_euteran_widgets_list(EuteranMainObject *self) {
+GList *
+euteran_main_object_get_euteran_widgets_list(EuteranMainObject *self) {
     return self->euteran_widgets_list;
 }
 
-void euteran_main_object_set_optional_pointer_object(EuteranMainObject *self, void *optional_pointer_object) {
+void 
+euteran_main_object_set_optional_pointer_object(EuteranMainObject *self, void *optional_pointer_object) {
     self->optional_object = optional_pointer_object;
 }
 
-void *euteran_main_object_get_optional_pointer_object(EuteranMainObject *self) {
-    g_return_val_if_fail(EUTERAN_IS_MAIN_OBJECT(self) && self->optional_object != NULL, NULL);
+void *
+euteran_main_object_get_optional_pointer_object(EuteranMainObject *self) {
+    g_return_val_if_fail(EUTERAN_IS_MAIN_OBJECT(self), NULL);
 
-    return self->optional_object;
+    return self->optional_object != NULL ? self->optional_object : NULL;
 }
 
 void
-euteran_main_object_save_data_json (EuteranMainObject *self)
-{
-    g_return_if_fail (EUTERAN_IS_MAIN_OBJECT (self));
-
-    GtkWidget        *stack  = (GtkWidget *)euteran_main_object_get_widget_at (self, STACK);
-    GtkSelectionModel*pages  = gtk_stack_get_pages (GTK_STACK (stack));
-    guint             n_items = g_list_model_get_n_items (G_LIST_MODEL (pages));
-
-    if(n_items == 0) {
-        log_info("No music data to save");
-        return;
+euteran_main_object_reset_cancellable(EuteranMainObject *self) {
+    g_return_if_fail(EUTERAN_IS_MAIN_OBJECT(self));
+    if (self->current_cancellable) {
+        g_cancellable_cancel(self->current_cancellable);
+        g_clear_object(&self->current_cancellable);
     }
-
-    log_warning("Saving this much music data: %d", n_items);
-
-    JsonBuilder *b = json_builder_new ();
-
-    json_builder_begin_object (b);
-    json_builder_set_member_name (b, "music_data");
-    json_builder_begin_array (b);
-
-    for (guint i = 0; i < n_items; i++) {
-
-        GtkStackPage *page = g_list_model_get_item (G_LIST_MODEL (pages), i);
-        if (!page)
-            continue;
-
-
-        const gchar *list_box_name = gtk_stack_page_get_title(page);
-        if(!list_box_name){
-            log_error("Failed to get list box name");
-            continue;
-        }
-
-        log_info("Saving music data for list box: %s", list_box_name);
-
-        json_builder_begin_object (b);
-        json_builder_set_member_name (b, "list_box_name");
-        json_builder_add_string_value (b, list_box_name);
-
-        json_builder_set_member_name (b, "music_list_path");
-        json_builder_begin_array (b);
-
-        GtkWidget *scrolled_window = gtk_stack_page_get_child (page);
-        if (GTK_IS_SCROLLED_WINDOW (scrolled_window)) {
-
-            GtkWidget *list_box = gtk_scrolled_window_get_child (GTK_SCROLLED_WINDOW (scrolled_window));
-            if (GTK_IS_VIEWPORT (list_box))
-                list_box = gtk_viewport_get_child (GTK_VIEWPORT (list_box));
-
-            if (GTK_IS_LIST_BOX (list_box)) {
-                for (GtkWidget *row = gtk_widget_get_first_child (list_box);
-                     row != NULL;
-                     row = gtk_widget_get_next_sibling (row))
-                {
-                    GtkWidget *row_box = gtk_widget_get_first_child (row);
-                    if (!GTK_IS_BOX (row_box))
-                        continue;
-                    
-                    GtkWidget *label = gtk_widget_get_first_child (row_box);
-                    GtkWidget *music_duration = gtk_widget_get_last_child (row_box);
-
-                    const gchar *music_path = gtk_label_get_text (GTK_LABEL (label));
-                    const gchar *music_duration_text = gtk_label_get_text (GTK_LABEL (music_duration));
-
-                    if(!music_path || !music_duration_text){
-                        log_error("Failed to get music path or duration");
-                        continue;
-                    }
-
-                    json_builder_begin_object (b);
-                    json_builder_set_member_name (b, "music_path");
-                    json_builder_add_string_value (b, music_path);
-                    json_builder_set_member_name (b, "music_duration");
-                    json_builder_add_string_value (b, music_duration_text);
-                    json_builder_end_object (b);
-                }
-            }
-        }
-        
-        json_builder_end_array (b);
-        json_builder_end_object (b);
-    }
-
-    json_builder_end_array (b);   
-    json_builder_end_object (b);  
-
-    JsonNode     *root = json_builder_get_root (b);   
-    JsonGenerator*gen  = json_generator_new ();
-    json_generator_set_root (gen, root);
-
-    gchar *path = g_build_filename (CONFIGURATION_DIR, "music_data.json", NULL);
-    g_mkdir_with_parents (g_path_get_dirname (path), 0700);
-
-    GError *err = NULL;
-    if (!json_generator_to_file (gen, path, &err))
-        g_warning ("Falha ao gravar %s: %s", path, err->message);
-    else
-        g_print ("JSON salvo em %s\n", path);
-
-    g_free (path);
-    g_object_unref (gen);
-    json_node_free (root);
-    g_object_unref (b);
+    self->current_cancellable = g_cancellable_new();
 }
+
 
 GtkWidget*
 euteran_main_object_get_list_box
@@ -345,6 +268,153 @@ euteran_main_object_get_list_box
     return list_box;
 }
 
+GCancellable *
+euteran_main_object_get_cancellable(EuteranMainObject *self) {
+    return self->current_cancellable;
+}
+
+void 
+euteran_main_object_set_cancellable(
+    EuteranMainObject *self, 
+    GCancellable *cancellable
+) 
+{
+    self->current_cancellable = cancellable;
+}
+
+/* 
+   Estrutura do arquivo music_data.dat
+
+   uint32_t n_items
+
+       uin16_t list_box_name_len
+       char list_box_name[]
+
+       uint32_t music_count_items
+
+           uint16_t music_name_len
+           char music_name[]
+
+           uint16_t music_duration_len
+           char music_duration[]
+
+           uint16_t music_duration_raw_len
+           char music_duration_raw[]
+ */
+void
+euteran_main_object_save_data_json (EuteranMainObject *self)
+{
+    g_return_if_fail (EUTERAN_IS_MAIN_OBJECT (self));
+
+    GtkWidget        *stack  = (GtkWidget *)euteran_main_object_get_widget_at (self, STACK);
+    GtkSelectionModel*pages  = gtk_stack_get_pages (GTK_STACK (stack));
+    guint             n_items = g_list_model_get_n_items (G_LIST_MODEL (pages));
+
+    if (n_items == 0) return;
+
+    char *full_path = malloc(strlen(CONFIGURATION_DIR) + strlen("music_data.dat") + 1);
+    sprintf(full_path, "%s%s", CONFIGURATION_DIR, "music_data.dat");
+    
+    FILE *binary_file_to_save = fopen(full_path, "wb");
+
+    if(!binary_file_to_save){
+        log_error("Failed to open file to save music data");
+        return;
+    }
+
+    free(full_path);
+
+    uint32_t n_items_32 = GINT32_TO_LE(n_items);
+    fwrite(&n_items_32, sizeof(uint32_t), 1, binary_file_to_save);
+    
+
+    for(guint i = 0; i < n_items; i++){
+        GtkStackPage *page = g_list_model_get_item(G_LIST_MODEL(pages), i);
+        if(!page || !GTK_IS_STACK_PAGE(page)){
+            continue;
+        }
+
+        const char *list_box_name = gtk_stack_page_get_title(page);
+        if(!list_box_name){
+            continue;
+        }
+
+        GtkWidget *scrolled_window = gtk_stack_page_get_child(page);
+        if(!scrolled_window || !GTK_IS_SCROLLED_WINDOW(scrolled_window)){
+            continue;
+        }
+
+        GtkWidget *list_box = gtk_scrolled_window_get_child(GTK_SCROLLED_WINDOW(scrolled_window));
+        if(!list_box){
+            continue;
+        }
+
+        if(GTK_IS_VIEWPORT(list_box)){
+            list_box = gtk_viewport_get_child(GTK_VIEWPORT(list_box));
+        }
+
+        if(!list_box || !GTK_IS_LIST_BOX(list_box)){
+            continue;
+        }
+        
+        size_t list_box_name_len_ = strlen(list_box_name);
+        uint16_t list_box_name_len = GINT16_TO_LE(list_box_name_len_);
+        fwrite(&list_box_name_len, sizeof(uint16_t), 1, binary_file_to_save);
+        fwrite(list_box_name, list_box_name_len_, 1, binary_file_to_save);
+
+
+
+        gint music_count = 0;
+        while(gtk_list_box_get_row_at_index(GTK_LIST_BOX(list_box), music_count) != NULL){
+            music_count++;
+        }
+        uint32_t music_count_items = GINT32_TO_LE(music_count);
+        fwrite(&music_count_items, sizeof(uint32_t), 1, binary_file_to_save);
+
+        for(GtkWidget *row = gtk_widget_get_first_child(GTK_WIDGET(list_box)); row != NULL; row = gtk_widget_get_next_sibling(row)){
+            GtkWidget *row_box = gtk_widget_get_first_child(GTK_WIDGET(row));
+            if(!row_box || !GTK_IS_BOX(row_box)){
+                continue;
+            }
+
+            GtkWidget *label = gtk_widget_get_first_child (row_box);
+            GtkWidget *music_duration = gtk_widget_get_last_child (row_box);
+
+            if(!label || !music_duration || !GTK_IS_LABEL(label) || !GTK_IS_LABEL(music_duration)){
+                continue;
+            }
+
+            const gchar *music_name = gtk_label_get_text (GTK_LABEL (label));
+            const gchar *music_duration_text = gtk_label_get_text (GTK_LABEL (music_duration));
+            const gchar *music_duration_raw = g_object_get_data (G_OBJECT(row), "music_duration");
+
+            if(!music_name || !music_duration_text || !music_duration_raw){
+                continue;
+            }
+
+            size_t music_name_len_ = strlen(music_name);
+            uint16_t music_name_len = GINT16_TO_LE(music_name_len_);
+            fwrite(&music_name_len, sizeof(uint16_t), 1, binary_file_to_save);
+            fwrite(music_name, music_name_len_, 1, binary_file_to_save);
+            
+            size_t music_duration_len_ = strlen(music_duration_text);
+            uint16_t music_duration_len = GINT16_TO_LE(music_duration_len_);
+            fwrite(&music_duration_len, sizeof(uint16_t), 1, binary_file_to_save);
+            fwrite(music_duration_text, music_duration_len_, 1, binary_file_to_save);
+            
+            size_t music_duration_raw_len_ = strlen(music_duration_raw);
+            uint16_t music_duration_raw_len = GINT16_TO_LE(music_duration_raw_len_);
+            fwrite(&music_duration_raw_len, sizeof(uint16_t), 1, binary_file_to_save);
+            fwrite(music_duration_raw, music_duration_raw_len_, 1, binary_file_to_save);
+        }
+    }
+
+    fclose(binary_file_to_save);
+    
+    log_info("Saved music data");
+}
+
+
 static void
 free_music_container(
     EuteranDialogContainer *container
@@ -370,119 +440,121 @@ free_music_list_data(MusicListData *data)
     g_free(data);
 }
 
-static MusicDataSave * 
-music_list_data_any(const char *name_to_analyze, MusicListData *data)
-{
-    for (GList *l = data->music_list; l != NULL; l = l->next) {
-        MusicDataSave *music_data = l->data;
-        if (g_strcmp0(name_to_analyze, music_data->music_path) == 0) {
-            return music_data;
-        }
-    }
-    return NULL;
-}
-
 static GList*
 load_music_data_from_json(const gchar *json_path, GError **error, GList *symlinks_musics_to_analyze)
 {
-    g_autoptr(JsonParser) parser = json_parser_new();
-    
-    if (!json_parser_load_from_file(parser, json_path, error)) {
+    char *full_path = malloc(strlen(CONFIGURATION_DIR) + strlen("music_data.dat") + 1);
+    sprintf(full_path, "%s%s", CONFIGURATION_DIR, "music_data.dat");
+    FILE *binary_to_read = fopen(full_path, "rb");
+
+    if(binary_to_read == NULL){
         return NULL;
     }
-    
-    g_autoptr(JsonReader) reader = json_reader_new(json_parser_get_root(parser));
-    
-    if (!json_reader_read_member(reader, "music_data")) {
-        g_set_error(error, G_IO_ERROR, G_IO_ERROR_FAILED, 
-                   "Failed to read 'music_data' member");
+
+    GList *music_list = NULL;
+
+    uint32_t n_items_32_raw;
+    fread(&n_items_32_raw, sizeof(uint32_t), 1, binary_to_read);
+    uint32_t n_items_32 = GUINT32_FROM_LE(n_items_32_raw);
+
+    if(n_items_32 <= 0){
         return NULL;
     }
-    
-    guint n_lists = json_reader_count_elements(reader);
-    if (n_lists == 0) {
-        json_reader_end_member(reader);
-        return NULL;
-    }
-    
-    GList *music_lists = NULL;
-    
-    for (guint i = 0; i < n_lists; i++) {
-        json_reader_read_element(reader, i);
-        
+
+    for(uint32_t i = 0; i < n_items_32; i++){
         MusicListData *list_data = g_new0(MusicListData, 1);
+        uint16_t list_box_name_len_raw;
+        fread(&list_box_name_len_raw, sizeof(uint16_t), 1, binary_to_read);
+        uint16_t list_box_name_len = GUINT16_FROM_LE(list_box_name_len_raw);
+        char *list_box_name = malloc(list_box_name_len + 1);
+        fread(list_box_name, list_box_name_len, 1, binary_to_read);
         
-        if (json_reader_read_member(reader, "list_box_name")) {
-            const gchar *name = json_reader_get_string_value(reader);
-            if(!name){
-                log_error("No list_box_name found at line %d", __LINE__);
-                json_reader_end_member(reader);
+        if(list_box_name == NULL){
+            continue;
+        }
+
+        list_box_name[list_box_name_len] = '\0';
+
+        list_data->name = list_box_name;
+
+        uint32_t n_musics_32_raw;
+        fread(&n_musics_32_raw, sizeof(uint32_t), 1, binary_to_read);
+        uint32_t n_musics_32 = GUINT32_FROM_LE(n_musics_32_raw);
+
+        for(uint32_t j = 0; j < n_musics_32; j++){
+            MusicDataSave *music_data = g_new0(MusicDataSave, 1);
+            uint16_t music_path_len_raw;
+            fread(&music_path_len_raw, sizeof(uint16_t), 1, binary_to_read);
+            uint16_t music_path_len = GUINT16_FROM_LE(music_path_len_raw);
+            char *music_path = malloc(music_path_len + 1);
+            fread(music_path, music_path_len, 1, binary_to_read);
+
+            if(music_path == NULL){
                 continue;
             }
 
-            list_data->name = g_strdup(name);
+            music_path[music_path_len] = '\0';
 
-            json_reader_end_member(reader);
-        }
-        
-        if (json_reader_read_member(reader, "music_list_path")) {
-            guint n_paths = json_reader_count_elements(reader);
+            uint16_t music_duration_len_raw;
+            fread(&music_duration_len_raw, sizeof(uint16_t), 1, binary_to_read);
+            uint16_t music_duration_len = GUINT16_FROM_LE(music_duration_len_raw);
+            char *music_duration = malloc(music_duration_len + 1);
+            fread(music_duration, music_duration_len, 1, binary_to_read);
+    
+            if(music_duration == NULL){
+                continue;
+            }
 
-            for (guint j = 0; j < n_paths; j++) {
-                MusicDataSave *music_data = g_new0(MusicDataSave, 1);
-                json_reader_read_element(reader, j);
-                json_reader_read_member(reader, "music_path");
-                const gchar *path = json_reader_get_string_value(reader);
-                json_reader_end_member(reader);
+            music_duration[music_duration_len] = '\0';
 
-                json_reader_read_member(reader, "music_duration");
-                const gchar *duration = json_reader_get_string_value(reader);
-                json_reader_end_member(reader);
-                if(!path || !duration){
-                    log_error("Failed to read 'music_path' or 'music_duration' member");
-                    json_reader_end_element(reader);
-                    g_free(music_data);
-                    continue;
-                }
-                char *full_path_analyze = g_strconcat(SYM_AUDIO_DIR, path, NULL);
-                if(!g_file_test(full_path_analyze, G_FILE_TEST_EXISTS)){
+            uint16_t music_duration_raw_len_raw;
+            fread(&music_duration_raw_len_raw, sizeof(uint16_t), 1, binary_to_read);
+            uint16_t music_duration_raw_len = GUINT16_FROM_LE(music_duration_raw_len_raw);
+            char *music_duration_raw = malloc(music_duration_raw_len + 1);
+            fread(music_duration_raw, music_duration_raw_len, 1, binary_to_read);
+
+            if(music_duration_raw == NULL){
+                continue;
+            }
+
+            music_duration_raw[music_duration_raw_len] = '\0';
+
+            char *full_path_analyze = g_strconcat(SYM_AUDIO_DIR, music_path, NULL);
+            if(!g_file_test(full_path_analyze, G_FILE_TEST_EXISTS)){
                     log_error("Music %s not found", full_path_analyze);
                     g_free(full_path_analyze);
-                    json_reader_end_element(reader);
+                    g_free(music_path);
+                    g_free(music_duration);
+                    g_free(music_duration_raw);
                     g_free(music_data);
                     continue;
-                }
-
-                music_data->music_path = g_strdup(path);
-                music_data->music_duration = g_strdup(duration);
-
-                list_data->music_list = g_list_append(list_data->music_list, music_data);
-
-                json_reader_end_element(reader);
             }
-            
-            json_reader_end_member(reader);
 
+            music_data->music_path = music_path;
+            music_data->music_duration = music_duration;
+            music_data->music_duration_raw = music_duration_raw;
+
+            list_data->music_list = g_list_append(list_data->music_list, music_data);
         }
-        
-        if(g_list_length(list_data->music_list) == 0){
-            g_list_free(list_data->music_list);
-            g_free(list_data->name);
+
+        if(list_data->music_list == NULL || g_list_length(list_data->music_list) == 0){
+            g_free(list_box_name);
             g_free(list_data);
             continue;
         }
-        
-        music_lists = g_list_append(music_lists, list_data);
-        
-        json_reader_end_element(reader);
+
+
+        music_list = g_list_append(music_list, list_data);
     }
+
+    fclose(binary_to_read);
 
     GHashTable *valid_paths = g_hash_table_new_full (g_str_hash,
                                                  g_str_equal,
                                                  g_free,   
                                                  NULL);   
 
-    for (GList *l = music_lists; l; l = l->next) {
+    for (GList *l = music_list; l; l = l->next) {
         MusicListData *list_data = l->data;
         for (GList *m = list_data->music_list; m; m = m->next) {
             MusicDataSave *md = m->data;
@@ -503,14 +575,20 @@ load_music_data_from_json(const gchar *json_path, GError **error, GList *symlink
     }
 
     g_hash_table_destroy (valid_paths);
-    
-    
-    json_reader_end_member(reader);
-    return music_lists;
+
+
+    free(full_path);
+    return music_list;
 }
 
 static GtkWidget*
-create_music_row(const gchar *music_path, const gchar *music_duration, EuteranMainObject *self, GtkWidget *list_box)
+create_music_row(
+    const gchar         *music_path,
+    const gchar         *music_duration,
+    const gchar         *music_duration_raw,
+    EuteranMainObject   *self,
+    GtkWidget           *list_box
+)
 {
     if (!music_path) {
         log_error("Music path is null");
@@ -552,8 +630,6 @@ create_music_row(const gchar *music_path, const gchar *music_duration, EuteranMa
     gtk_widget_add_css_class(separator_line, "line_class");
     gtk_box_append(GTK_BOX(box_music_name_and_duration), separator_line);
     
-    double duration_value = formatted_string_to_double(music_duration);
-
     const char *duration_str = music_duration;
     GtkWidget *duration = gtk_label_new(duration_str ? duration_str : "0.0");
     gtk_widget_set_size_request(duration, 75, -1);
@@ -564,7 +640,7 @@ create_music_row(const gchar *music_path, const gchar *music_duration, EuteranMa
     
     gtk_list_box_row_set_child(GTK_LIST_BOX_ROW(row), box_music_name_and_duration);
     
-    g_object_set_data(G_OBJECT(row), "music_duration", cast_simple_double_to_string(duration_value));
+    g_object_set_data(G_OBJECT(row), "music_duration", strdup(music_duration_raw));
     
     g_free(music_full_path);
     return row;
@@ -580,7 +656,7 @@ create_new_stack_page(GtkWidget *stack, const gchar *page_name)
     gtk_scrolled_window_set_min_content_height(GTK_SCROLLED_WINDOW(scrolled_window), 297);
     
     GtkWidget *list_box = gtk_list_box_new();
-    gtk_list_box_set_selection_mode(GTK_LIST_BOX(list_box), GTK_SELECTION_BROWSE);
+    gtk_list_box_set_selection_mode(GTK_LIST_BOX(list_box), GTK_SELECTION_SINGLE);
     gtk_widget_add_css_class(list_box, "list_box");
     
     gtk_scrolled_window_set_child(GTK_SCROLLED_WINDOW(scrolled_window), list_box);
@@ -605,9 +681,9 @@ populate_music_list(GtkWidget *list_box, const MusicListData *list_data,
 
         const gchar *music_duration = musics->music_duration;
         const gchar *music_path = musics->music_path;
-        
+        const gchar *music_duration_raw = musics->music_duration_raw;       
 
-        GtkWidget *row = create_music_row(music_path, music_duration, self, list_box);
+        GtkWidget *row = create_music_row(music_path, music_duration, music_duration_raw, self, list_box);
         if (row) {
             gtk_list_box_insert(GTK_LIST_BOX(list_box), row, -1);
         }
@@ -651,6 +727,7 @@ get_symlinks_musics_to_analyze(void)
         closedir(dir);
     }
     return symlinks;
+
 }
 
 void 
@@ -689,6 +766,4 @@ euteran_main_object_load_and_apply_data_json(EuteranMainObject *self,
     g_list_free(symlinks_musics_to_analyze);
     g_list_free_full(music_lists, (GDestroyNotify)free_music_list_data);
 }
-
-
 /* vou modularizar isso depois, por enquanto vou deixar aqui */

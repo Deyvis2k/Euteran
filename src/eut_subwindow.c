@@ -1,11 +1,11 @@
-#include "widgets_devices.h"
-#include "e_logs.h"
-#include "audio_devices.h"
-#include "euteran_main_object.h"
+#include "eut_subwindow.h"
+#include "eut_logs.h"
+#include "eut_audiodevices.h"
+#include "eut_main_object.h"
 #include "glib.h"
 #include "gtk/gtk.h"
 #include "gtk/gtkshortcut.h"
-#include "utils.h"
+#include "eut_utils.h"
 
 static gboolean opened_window = FALSE;
 static int last_width, last_height = 0;

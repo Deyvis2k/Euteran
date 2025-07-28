@@ -25,6 +25,9 @@ typedef enum{
     STACK_SWITCHER,
     SWITCHER_ADD_BUTTON,
     STOP_BUTTON,
+    INPUT_SLIDER,
+    INPUT_BUTTON,
+    STOP_RECORDING_BUTTON,
     MAX_WIDGETS
 } WIDGETS;
 
@@ -44,7 +47,11 @@ static const char *widgets_names[MAX_WIDGETS] = {
     "view_stack_main",
     "stack_switcher",
     "switcher_add_button",
-    "stop_button"
+    "stop_button",
+    "input_slider",
+    "button_input_recording",
+    "button_input_stop_recording"
+
 };
 
 double *seconds_to_minute(double music_duration);

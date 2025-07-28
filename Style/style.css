@@ -3,11 +3,11 @@
 @import "devices.css";
 
 .main_window_class{
-    background-color: rgba(48,48,48,0.6);
+    background-color: rgba(48,48,48,0.8);
 }
 
 .main_box{
-    background-color: rgba(48,48,48,0.2);
+    background-color: rgba(48,48,48,0.7);
 }
 
 
@@ -22,7 +22,7 @@
 }
 
 .header_bar{
-    background-color: rgba(48,48,48,0.2);
+    background-color: rgba(48,48,48,0.7);
     border: none;
     box-shadow: none;
     padding: 0px;
@@ -30,6 +30,7 @@
     caret-color: transparent;
     outline-color: transparent;
     background-image: none;
+    border-radius: 0px;
 }
 
 .header_bar windowhandle{
@@ -109,6 +110,10 @@
     background-color: transparent;
 }
 
+.slider_main {
+    min-width: 200px;
+}
+
 .slider_main slider{
     box-shadow: none;
     background-color: rgba(148,162, 155, 0.95);
@@ -150,13 +155,13 @@
 
 .list_box{
     color: white;
-    font-family: "JetbrainsMono Nerd Font";
+    font-family: "RecMonoCasual Nerd Font";
     font-style: italic;
     font-kerning: normal;
     font-stretch: normal;
-    line-height: 0.95;
+    line-height: 1;
     font-weight: normal;
-    font-size: 16px;
+    font-size: 14px;
     background-color: rgba(48,48,48,0.01);
     box-shadow: none;
 }
@@ -183,6 +188,7 @@
     box-shadow: none;
     border-radius: 0px;
     margin: 0px;
+    padding: 0px;
     -gtk-icon-size: 15px;
 }
 
@@ -230,8 +236,27 @@
 }
 
 .options_and_menu_clamp{
-    background-color: rgba(48,48,48,0.2);
+    background-color: rgba(48,48,48,0.7);
     box-shadow: none;
     border-right: 0.3px solid dimgrey;
     border-radius: 0px;
+}
+
+.input_box{
+    border-right: 0.3px ridge dimgrey;
+    padding-right: 10px;
+}
+
+.output_box{
+    margin-right: 5px;
+}
+
+.input_slider_class{
+    min-width: 100px;
+}
+
+
+.stream_label_generic{
+    color: dimgrey;
+    border-bottom: 0.3px ridge dimgrey;
 }

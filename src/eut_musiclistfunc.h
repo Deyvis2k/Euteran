@@ -2,8 +2,8 @@
 
 
 #include <gtk/gtk.h>
-#include "utils.h"
-#include "euteran_main_object.h"
+#include "eut_utils.h"
+#include "eut_main_object.h"
 
 typedef struct {
     GtkWidget *row_box;
