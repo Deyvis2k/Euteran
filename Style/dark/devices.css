@@ -1,9 +1,9 @@
-@import "colors.css";
+@import "../colors.css";
 
 
 .new_window_devices_class{
-    background-color: rgba(48,48,48,0.9);
-    min-width: 500px;
+    background-color: rgba(48,48,48,1);
+    min-width: 600px;
 }
 
 .main_header_bar{
@@ -82,4 +82,12 @@
 .box_container_main_class{
     /* opacity: 0.8; */
     border-radius: 4px;
+}
+
+.list_box_selection_none:hover{
+    background-color: transparent;
+}
+
+.list_box_selection_none{
+    background-color: transparent;
 }

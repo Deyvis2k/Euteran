@@ -1,0 +1,151 @@
+@import "../colors.css";
+
+
+.new_window_devices_class{
+    background-color: rgb(230,230,230);
+    min-width: 600px;
+}
+
+.main_header_bar{
+    background-color: rgb(230,230,230);
+    border: none;
+    box-shadow: none;
+    padding: 0px;
+    border-color: transparent;
+    caret-color: transparent;
+    outline-color: transparent;
+    background-image: none;
+}
+
+.main_header_bar windowhandle{
+    border: none;
+    box-shadow: none;
+    border-color: transparent;
+    caret-color: transparent;
+    outline-color: transparent;
+}
+
+.main_header_bar windowcontrols.end button{
+    color: darkgray;
+    background-color: transparent;
+    box-shadow: none;
+    caret-color: transparent;
+    outline-color: transparent;
+}
+
+.main_header_bar windowcontrols.end button image:not(:hover){
+    background-color: transparent;
+    box-shadow: none;
+    caret-color: transparent;
+    outline-color: transparent;
+}
+
+.main_header_bar headerbar windowhandle{
+    border: none;
+    box-shadow: none;
+    border-color: transparent;
+    caret-color: transparent;
+    outline-color: transparent;
+}
+
+.main_header_bar windowhandle box{
+    border: none;
+    box-shadow: none;
+    border-color: transparent;
+    caret-color: transparent;
+    outline-color: transparent;
+}
+
+.main_header_bar box widget{
+    border: none;
+    box-shadow: none;
+    border-color: transparent;
+    caret-color: transparent;
+    outline-color: transparent;
+}
+
+.box_sinks_class{
+    border-radius: 4px;
+    border: 0.8px ridge dimgrey;
+}
+
+.box_sources_class{
+    border-radius: 4px;
+    border: 0.8px ridge dimgrey;
+}
+
+.list_box_sinks_class{
+    border-radius: 4px;
+    border: 0.4px ridge dimgrey;
+    color: floralwhite;
+    font-family: "JetbrainsMono Nerd Font";
+    font-size: 12px;
+}
+
+.container_real_devices_class{
+    border-radius: 4px;
+    border: 0.3px ridge dimgrey;
+}
+
+.list_box_sources_class{
+    border-radius: 4px;
+    border: 0.3px ridge dimgrey;
+    color: floralwhite;
+    font-family: "JetbrainsMono Nerd Font";
+    font-size: 12px;
+}
+.box_container_main_class{
+    /* opacity: 0.8; */
+    border-radius: 4px;
+}
+
+.drop_down_default{
+    background-color: rgb(200,200,200);
+    border-radius: 4px;
+    border: 0.3px ridge dimgrey;
+    color: #444444;
+    font-family: "JetbrainsMono Nerd Font";
+    font-size: 12px;
+}
+
+.drop_down_default popover{
+    background-color: transparent;
+    background-image: none;
+    box-shadow: none;
+    caret-color: transparent;
+    outline-color: transparent;
+}
+
+.drop_down_default popover contents{
+    background-color: rgb(200,200,200);
+    border-radius: 10px;
+    border: 0.3px ridge dimgrey;
+    color: #444444;
+    font-family: "JetbrainsMono Nerd Font";
+    font-size: 12px;
+}
+
+.label_devices_class {
+    color: #444444;
+    font-family: "JetbrainsMono Nerd Font";
+    font-size: 12px;
+    font-weight: bold;
+}
+
+viewswitcher button{
+    color: #444444;
+    background-color: transparent;
+    border-radius: 10px;
+}
+
+viewswitcher button:checked{
+    background-color: rgb(200,200,200);
+}
+
+.list_box_selection_none:hover{
+    background-color: transparent;
+}
+
+.list_box_selection_none{
+    background-color: transparent;
+}

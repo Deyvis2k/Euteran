@@ -1,0 +1,61 @@
+@import '../colors.css';
+
+
+
+
+.progress_bar_class {
+    background-color: transparent;
+    /* border-radius: 4px; */
+    border: none;
+    box-shadow: none;
+    min-width: 100px;
+    padding: 0px;
+}
+
+.progress_bar_size_class {
+    min-width: 200px;
+}
+
+.progress_bar_class trough {
+    box-shadow: none;
+    border: none;
+    min-height: 6px;
+    border-radius: 3px;
+}
+
+
+.progress_bar_class slider {
+    background-color: transparent;
+    /* border-radius: 4px; */
+    background-image: none;
+    box-shadow: none;
+    border-radius: 0px;
+    border: none;
+    margin: -7px;
+    outline-offset: -3px;
+    min-height: 16px;
+    min-width: 16px;
+    transition-timing-function: ease-in-out;
+    transition-property: all;
+    outline-style: dashed;
+}
+
+.progress_bar_class highlight{
+    /* background-color: red; */
+
+    /* background-color: var(--purple); */
+    /* border-radius: 4px; */
+    box-shadow: none;
+    border-image: none;
+    /* background-image : none; */
+    border: none;
+    margin: 0px;
+    outline-offset: -3px;
+    outline-style: dashed;
+    padding: 0px;
+}
+
+/* .progress_bar_class trough highlight { */
+    /* background-color: var(--rosewater); */
+/* } */
+

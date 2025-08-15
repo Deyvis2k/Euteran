@@ -11,14 +11,15 @@
 GetDurationFunc get_duration_functions[MAX_MUSIC_TYPES] = {get_duration_mp3, get_duration_ogg, get_duration_wav};
 SetupAudioFunc setup_audio_functions[MAX_MUSIC_TYPES] = {setup_audio_mp3, setup_audio_ogg, setup_audio_wav};
 
-static inline void 
+static void 
 apply_volume(
     int16_t *buffer, 
-    size_t  size
+    size_t  size,
+    EuteranMainObject *self
 )
 {
     for(int i = 0; i < size; i++){
-        buffer[i] = (int16_t)(buffer[i] * euteran_settings_get_last_volume(euteran_settings_get()));
+        buffer[i] = (int16_t) buffer[i] * euteran_settings_get_last_volume(euteran_main_object_get_settings_object(self));
     }
 }
 
@@ -60,49 +61,49 @@ void search_on_audio(EuteranMainAudio *data){
 }
 
 void 
-cleanup_process(void *data_) {
-    EuteranMainAudio *data = data_;
+cleanup_process(void *data) {
+    EuteranMainAudio *main_audio = data;
 
-    if(!data) {
+    if(!main_audio) {
         return;
     }
 
-    data->valid = FALSE;
-    if(data->task_data && progress_timer_id != 0) {
+    main_audio->valid = FALSE;
+    if(main_audio->task_data && progress_timer_id != 0) {
         g_idle_add_full(G_PRIORITY_DEFAULT, (GSourceFunc)cancel_progress_bar_timer, NULL, NULL);
     }
 
-    if (data->stream) {
-        pw_stream_set_active(data->stream, false);
-        pw_stream_disconnect(data->stream);
-        pw_stream_destroy(data->stream);
-        data->stream = NULL;
+    if (main_audio->stream) {
+        pw_stream_set_active(main_audio->stream, false);
+        pw_stream_disconnect(main_audio->stream);
+        pw_stream_destroy(main_audio->stream);
+        main_audio->stream = NULL;
     }
-    if (data->loop) {
-        if (!data->loop_stopped) {
-            pw_main_loop_quit(data->loop);
+    if (main_audio->loop) {
+        if (!main_audio->loop_stopped) {
+            pw_main_loop_quit(main_audio->loop);
         }
-        pw_main_loop_destroy(data->loop);
+        pw_main_loop_destroy(main_audio->loop);
     }
-    if (data->task_data &&
-            data->task_data->audio_type == OGG && data->vorbis) {
-        stb_vorbis_close(data->vorbis);
-        data->vorbis = NULL;
-        data->vorbis_valid = FALSE;
-    } else if (data->mpg) {
-        mpg123_close(data->mpg);
-        mpg123_delete(data->mpg);
+    if (main_audio->task_data &&
+            main_audio->task_data->audio_type == OGG && main_audio->vorbis) {
+        stb_vorbis_close(main_audio->vorbis);
+        main_audio->vorbis = NULL;
+        main_audio->vorbis_valid = FALSE;
+    } else if (main_audio->mpg) {
+        mpg123_close(main_audio->mpg);
+        mpg123_delete(main_audio->mpg);
         mpg123_exit();
     }
-    if(data->wav) {
-        drwav_free(data->wav, NULL);
-        data->wav = NULL;
+    if(main_audio->wav) {
+        drwav_free(main_audio->wav, NULL);
+        main_audio->wav = NULL;
     }
     
-    if (data->task_data) g_free(data->task_data);
+    if (main_audio->task_data) g_free(main_audio->task_data);
     
-    data->loop = NULL;
-    data->task_data = NULL;
+    main_audio->loop = NULL;
+    main_audio->task_data = NULL;
     log_warning("Processo de áudio encerrado em cleanup_process");
 }
 
@@ -147,7 +148,7 @@ static void on_process(void *userdata) {
         return;
     }
 
-    if (g_cancellable_is_cancelled(data->cancellable) && !data->loop_stopped) {
+    if (g_cancellable_is_cancelled(data->cancellable)) {
         log_info("Cancelando áudio, aguarde...");
         data->loop_stopped = TRUE;
         if(data->loop) pw_main_loop_quit(data->loop);
@@ -220,7 +221,7 @@ static void on_process(void *userdata) {
 
 
 
-    apply_volume(dst, bytes_to_copy / sizeof(int16_t));
+    apply_volume(dst, bytes_to_copy / sizeof(int16_t), data->main_object);
 
     buf->datas[0].chunk->offset = 0;
     buf->datas[0].chunk->stride = sizeof(int16_t) * data->channels;
@@ -285,16 +286,22 @@ void play_audio(EuteranMainAudio *audio_passed) {
         return;
     }
 
-    params[0] = spa_format_audio_raw_build(&b, SPA_PARAM_EnumFormat,
+    params[0] = spa_format_audio_raw_build(
+        &b, 
+        SPA_PARAM_EnumFormat,
         &SPA_AUDIO_INFO_RAW_INIT(
             .format = SPA_AUDIO_FORMAT_S16,
             .channels = data->channels,
-            .rate = data->rate));
+            .rate = data->rate
+        )
+    );
 
     if (pw_stream_connect(data->stream,
                           PW_DIRECTION_OUTPUT,
                           PW_ID_ANY,
-                          PW_STREAM_FLAG_AUTOCONNECT | PW_STREAM_FLAG_MAP_BUFFERS | PW_STREAM_FLAG_RT_PROCESS,
+                          PW_STREAM_FLAG_AUTOCONNECT | 
+                          PW_STREAM_FLAG_MAP_BUFFERS | 
+                          PW_STREAM_FLAG_RT_PROCESS,
                           params, 1) != 0) {
         log_error("Erro ao conectar o stream");
         pw_stream_destroy(data->stream);
@@ -387,7 +394,12 @@ double get_duration_wav(const char *music_path) {
     //total 
     drwav_uint64 total;
     drwav_get_length_in_pcm_frames(&wav, &total);
-    return (double)total / wav.sampleRate;
+
+    double duration = (double)total / wav.sampleRate;
+
+    log_info("Duracao: %f", duration);
+    drwav_uninit(&wav);
+    return duration;
 }
 
 

@@ -1,5 +1,7 @@
 
+
 #include <stdlib.h>
+#include <stdio.h>
 #include <xcb/xcb.h>
 
 xcb_connection_t *conn;
@@ -18,7 +20,7 @@ void *capture_key(void *data){
             case XCB_KEY_PRESS:
                 key_event = (xcb_key_press_event_t *)event;
                 if(key_event->detail == keycode) {
-                    play_audio(data, NULL, NULL);
+                    // play_audio(data, NULL, NULL);
                 }
                 break;
             default:

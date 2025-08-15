@@ -1,6 +1,5 @@
 #include "eut_utils.h"
 #include "eut_constants.h"
-#include "eut_async.h"
 #include "eut_logs.h"
 #include "eut_audiolinux.h"
 #include <dirent.h>
@@ -11,12 +10,12 @@
 #include <sys/stat.h>
 
 double* seconds_to_minute(double music_duration) {
-    int min = music_duration * MINUTE_CONVERT;
+    int min = (int)(music_duration * MINUTE_CONVERT);
     double seconds = fmod(music_duration, 60);
     
 
     double *result = (double*) malloc(2 * sizeof(double));
-    if(result == NULL){
+    if(result == nullptr){
         log_error("Error allocating memory");
         exit(1);
     }
@@ -29,13 +28,13 @@ double* seconds_to_minute(double music_duration) {
 char *cast_simple_double_to_string(double value) {
     if (value < 0){
         log_error("Value cannot be negative");
-        return NULL;
+        return nullptr;
     }
 
     char* buffer = malloc(10);  
     if (!buffer){
         log_error("Error allocating memory");
-        return NULL;
+        return nullptr;
     }
 
     snprintf(buffer, 10, "%.0f", value);
@@ -46,13 +45,13 @@ char *cast_simple_double_to_string(double value) {
 char* cast_double_to_string(double value) {
     if (value < 0){
         log_error("Value cannot be negative");
-        return NULL;
+        return nullptr;
     }
 
     char* buffer = malloc(10);  
     if (!buffer){
         log_error("Error allocating memory");
-        return NULL;
+        return nullptr;
     }
 
     if (value > 60) {
@@ -60,7 +59,7 @@ char* cast_double_to_string(double value) {
         if (!time_values) {
             free(buffer);
             log_error("Cannot get time values");
-            return NULL;
+            return nullptr;
         }
         double h = 0;
         double m = time_values[0];
@@ -89,7 +88,14 @@ char* cast_double_to_string(double value) {
 }
 
 double string_to_double(const char *str){
-    double value = atof(str);
+    char *endptr;
+    double value = strtod(str, &endptr);
+
+    if (endptr == str || *endptr != '\0') {
+        log_error("Invalid string: %s", str);
+        return -1;
+    }
+
     return value;
 }
 
@@ -98,26 +104,26 @@ double string_to_double(const char *str){
 GList *list_files_musics(const char* dir) {
     DIR *dp;
     struct dirent *ep;
-    GList *list = NULL;
+    GList *list = nullptr;
 
     dp = opendir(dir);
-    if (dp == NULL) {
+    if (dp == nullptr) {
         return list;
     }
 
-    while ((ep = readdir(dp)) != NULL) {
+    while ((ep = readdir(dp)) != nullptr) {
         if (ep->d_type == DT_DIR || ep->d_name[0] == '.') {
             continue;
         }
         if (IS_ALLOWED_EXTENSION(ep->d_name)) {
             music_t *music = malloc(sizeof(music_t));
-            if (music == NULL) {
+            if (music == nullptr) {
                 closedir(dp);
                 return list;
             }
 
             music->name = strdup(ep->d_name);
-            if (music->name == NULL) {
+            if (music->name == nullptr) {
                 free(music);
                 closedir(dp);
                 return list;
@@ -146,20 +152,6 @@ GList *list_files_musics(const char* dir) {
 
     return list;
 }
-
-GFile* get_file_from_path() {
-    GFile *css_file;
-    if(g_file_test("Style/style.css", G_FILE_TEST_EXISTS)) {
-        css_file = g_file_new_for_path("Style/style.css");
-    } else {
-        mkdir("Style", 0777);
-        run_subprocess_async("touch Style/style.css", NULL, NULL);
-        css_file = g_file_new_for_path("Style/style.css");
-    }
-
-    return css_file;
-}
-
 
 char* remove_outside_quotes(char* str){
     size_t len = strlen(str);
@@ -192,7 +184,7 @@ void trim(char *str) {
     while (end > start && isspace((unsigned char)*end)) end--;
     *(end + 1) = '\0';
     if (start != str) memmove(str, start, end - start + 2);
-    if (!g_utf8_validate(str, -1, NULL)) {
+    if (!g_utf8_validate(str, -1, nullptr)) {
         log_warning("String após trim inválida em UTF-8: %s", str);
     }
 }
@@ -200,28 +192,28 @@ void trim(char *str) {
 char* get_within_quotes(const char* str) {
     const char* start = strchr(str, '"');
     if (!start) {
-        return NULL;
+        return nullptr;
     }
     start++;
 
     const char* end = strchr(start, '"');
     if (!end) {
-        return NULL;
+        return nullptr;
     }
 
     size_t length = end - start;
     char* result = malloc(length + 1);
     if (!result) {
         log_error("Falha ao alocar memória");
-        return NULL;
+        return nullptr;
     }
 
     strncpy(result, start, length);
     result[length] = '\0';
 
-    if (!g_utf8_validate(result, -1, NULL)) {
+    if (!g_utf8_validate(result, -1, nullptr)) {
         log_warning("String extraída inválida em UTF-8: %s", result);
-        gchar* converted = g_convert(result, -1, "UTF-8", "ISO-8859-1", NULL, NULL, NULL);
+        gchar* converted = g_convert(result, -1, "UTF-8", "ISO-8859-1", nullptr, nullptr, nullptr);
         free(result);
         if (converted) {
             log_info("String convertida para UTF-8: %s", converted);
@@ -239,7 +231,7 @@ char* get_within_quotes(const char* str) {
 double
 formatted_string_to_double(const char *str)
 {
-    if(strchr(str, 'm') == NULL && strchr(str, 'h') == NULL){
+    if(strchr(str, 'm') == nullptr && strchr(str, 'h') == nullptr){
         log_warning("String inválida: %s", str);
         char *end_ptr;
         double value = strtod(str, &end_ptr);
@@ -253,7 +245,7 @@ formatted_string_to_double(const char *str)
     double multiplier = 1;
     for (const char *c = str; *c != '\0'; c++) {
         if(!isdigit((unsigned char)*c)){
-            double val = strtod(temp, NULL);
+            double val = strtod(temp, nullptr);
             if(strcmp(str, "1m40s") == 0){
                 log_info("temp: %s", temp);
             }
@@ -275,4 +267,57 @@ formatted_string_to_double(const char *str)
     }
     
     return value;
+}
+
+
+char*
+get_absolute_path
+(
+    AbsolutePathTypeFile type
+) 
+{
+    switch (type) {
+        case STYLE_FILE:
+            ;GFile *gfile = g_file_new_for_path("./Style");
+            if (g_file_query_exists(gfile, nullptr)) {
+                g_object_unref(gfile);
+                return g_strdup("./Style");
+            }
+            g_object_unref(gfile);
+            return g_strdup("/app/share/Euteran/Style");
+            break;
+        case UX_FILE:
+            ;GFile *gfile_ = g_file_new_for_path("ux");
+            if (g_file_query_exists(gfile_, nullptr)) {
+                g_object_unref(gfile_);
+                return g_strdup("./ux");
+            }
+            g_object_unref(gfile_);
+            return g_strdup("/app/share/Euteran/ux");
+            break;
+        default:
+            return nullptr;
+            break;
+    }
+    return nullptr;
+}
+
+
+
+const char *
+get_platform_music_path(void)
+{
+    const char *buffer = malloc(4096);
+    if (!buffer) {
+        log_error("Error allocating memory");
+        return nullptr;
+    }
+
+    buffer = g_get_user_special_dir(G_USER_DIRECTORY_MUSIC);
+    if (!buffer) {
+        log_error("Error getting music directory");
+        return nullptr;
+    }
+
+    return buffer;
 }

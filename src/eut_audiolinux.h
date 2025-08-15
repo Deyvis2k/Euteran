@@ -2,6 +2,7 @@
 
 #include <mpg123.h>
 #include <gtk/gtk.h>
+#include "eut_main_object.h"
 #include "ogg/stb_vorbis.h"
 #include "eut_constants.h"
 #include <pipewire/pipewire.h>
@@ -47,6 +48,7 @@ typedef struct {
     gboolean paused;
     gboolean valid;
     gboolean loop_stopped;
+    EuteranMainObject *main_object;
 } EuteranMainAudio;
 
 typedef struct{
@@ -61,7 +63,6 @@ extern SetupAudioFunc setup_audio_functions[MAX_MUSIC_TYPES];
 
 
 static void on_process(void *userdata);
-static void apply_volume(int16_t *buffer, size_t size);
 static const struct pw_stream_events stream_events;
 void play_audio(EuteranMainAudio *audio_passed);
 void search_on_audio(EuteranMainAudio *data);

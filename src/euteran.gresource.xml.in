@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gresources>
+    <gresource prefix="/org/euteran">
+    <file>euteran_main.ui</file>
+    <file>euteran_audio_devices.ui</file>
+  </gresource>
+</gresources>

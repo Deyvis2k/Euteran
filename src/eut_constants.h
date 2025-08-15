@@ -24,24 +24,24 @@ static char* get_sym_audio_dir(LOCATION_T location) {
     const char* base = getenv("XDG_DATA_HOME");
     if (!base || base[0] == '\0') {
         base = getenv("HOME");
-        if (!base) return NULL;
+        if (!base) return nullptr;
 
         size_t len = strlen(base) + strlen("/.local/share/Euteran/") + strlen(title) + 2;
         char* path = malloc(len);
-        if (!path) return NULL;
+        if (!path) return nullptr;
         snprintf(path, len, "%s/.local/share/Euteran/%s/", base, title);
         return path;
     } else {
         size_t len = strlen(base) + strlen("/Euteran/") + strlen(title) + 2;
         char* path = malloc(len);
-        if (!path) return NULL;
+        if (!path) return nullptr;
         snprintf(path, len, "%s/Euteran/%s/", base, title);
         return path;
     }
 
 #elif _WIN32
     const char* user = getenv("USERNAME");
-    if (!user) return NULL;
+    if (!user) return nullptr;
 
     // Choose correct subdir
     const char* subdir = location == SYMLINK ? "symlinks" : "configuration";
@@ -49,12 +49,12 @@ static char* get_sym_audio_dir(LOCATION_T location) {
     size_t len = strlen("C:\\Users\\") + strlen(user) +
                  strlen("\\AppData\\Local\\Euteran\\") + strlen(subdir) + 2;
     char* path = malloc(len);
-    if (!path) return NULL;
+    if (!path) return nullptr;
 
     snprintf(path, len, "C:\\Users\\%s\\AppData\\Local\\Euteran\\%s\\", user, subdir);
     return path;
 #else
-    return NULL;
+    return nullptr;
 #endif
 }
 

@@ -1,0 +1,237 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $EutSubwindow : Adw.Window {
+    title: "Euteran-CuzinTop";
+    resizable: true;
+    can-focus: true;
+    styles ["new_window_devices_class"]
+
+    Gtk.Box {
+        orientation: vertical;
+
+        Adw.HeaderBar main_header_bar {
+            styles ["main_header_bar"]
+            
+            title-widget: Adw.ViewSwitcher view_switcher_title {
+                stack: stack;
+            };
+        }
+
+        Adw.ViewStack stack {
+            vhomogeneous: false;
+            styles ["view_stack_class"]
+
+            Adw.ViewStackPage {
+                name: "overview";
+                title: "Overview";
+                icon-name: "audio-card";
+                
+                child: Gtk.Box main_box {
+                    orientation: vertical;
+                    spacing: 10;
+                    margin-start: 10;
+                    margin-end: 10;
+                    margin-top: 10;
+                    margin-bottom: 10;
+                    styles ["main_box_sub_window"]
+
+                    Gtk.Box sink_box {
+                        orientation: horizontal;
+                        spacing: 10;
+                        valign: center;
+
+                        Gtk.Image sink_icon {
+                            icon-name: "audio-speakers";
+                            halign: start;
+                            valign: center;
+                        }
+
+                        Gtk.Label sink_label {
+                            label: "Output";
+                        }
+                    }
+
+                    Gtk.Box sink_section {
+                        orientation: vertical;
+                        hexpand: true;
+                        spacing: 8;
+
+                        Gtk.DropDown sink_dropdown {
+                            hexpand: true;
+                            styles ["drop_down_default"]
+                            model: Gtk.StringList sink_list {
+                            };
+                        }
+                    }
+
+                    Gtk.Box source_box {
+                        orientation: horizontal;
+                        spacing: 10;
+                        valign: center;
+                        margin-top: 20;
+
+                        Gtk.Image source_icon {
+                            icon-name: "audio-input-microphone";
+                            halign: start;
+                            valign: center;
+                        }
+
+                        Gtk.Label source_label {
+                            label: "Input";
+                        }
+                    }
+
+                    Gtk.Box source_section {
+                        orientation: vertical;
+                        spacing: 8;
+                        hexpand: true;
+
+                        Gtk.DropDown source_dropdown {
+                            hexpand: true;
+                            styles ["drop_down_default"]
+                            model: Gtk.StringList source_list {
+                            };
+                        }
+                    }
+
+                    Adw.Clamp sink_clamp {
+                        maximum-size: 600;
+                        margin-top: 30;
+
+                        child: Gtk.Label confirm_label {
+                            label: "Click on confirm to synchronize the input and output. \
+Note that this will create a virtual device synchronizing the selected audio devices.";
+                            halign: center;
+                            justify: center;
+                            valign: center;
+                            wrap: true;
+                            styles ["label_devices_class"]
+                        };
+                    }
+
+                    Gtk.Button confirm_button {
+                        label: "Confirm";
+                        halign: center;
+                        margin-top: 20;
+                        styles ["suggested-action"]
+                    }
+                };
+            }
+
+            Adw.ViewStackPage {
+                name: "settings";
+                title: "Settings";
+                icon-name: "preferences-system";
+                
+                child: Gtk.Box {
+                    orientation: vertical;
+                    spacing: 10;
+
+                    Gtk.Label {
+                        label: "Settings Page";
+                        halign: center;
+                        valign: center;
+                        styles ["title-1"]
+                    }
+
+                    Gtk.ListBox settings_and_theme_section {
+                        selection-mode: none;
+                        hexpand: true;
+                        vexpand: true;
+                        styles ["list_box_selection_none"]
+
+                        Gtk.Box {
+                            orientation: horizontal;
+                            hexpand: true;
+                            spacing: 10;
+
+                            Gtk.Label {
+                                label: "Theme";
+                                halign: start;
+                                styles ["title-2"]
+                            }
+
+                            Gtk.DropDown theme_dropdown {
+                                hexpand: true;
+                                halign: end;
+                                margin-bottom: 10;
+                                styles ["drop_down_default"]
+                                notify::selected => $on_dropdown_theme_selected(template);
+                                model: Gtk.StringList theme_name_list {
+                                };
+                            }
+                        }
+
+                        Gtk.Box {
+                            orientation: horizontal;
+                            hexpand: true;
+                            spacing: 10;
+
+                            Gtk.Label {
+                                label: "Icon-Theme";
+                                halign: start;
+                                styles ["title-2"]
+                            }
+
+                            Gtk.DropDown icon_dropdown {
+                                hexpand: true;
+                                halign: end;
+                                styles ["drop_down_default"]
+                                notify::selected => $on_dropdown_icon_selected(template);
+                                model: Gtk.StringList theme_icon_list {
+                                };
+                            }
+                        }
+                    }
+                };
+            }
+
+            Adw.ViewStackPage {
+                name: "about";
+                title: "About";
+                icon-name: "help-about";
+                
+                child: Gtk.Box {
+                    orientation: vertical;
+                    spacing: 20;
+                    margin-start: 40;
+                    margin-end: 40;
+                    margin-top: 40;
+                    margin-bottom: 40;
+                    halign: center;
+                    valign: center;
+
+                    Gtk.Image {
+                        icon-name: "audio-card";
+                        pixel-size: 64;
+                    }
+
+                    Gtk.Label {
+                        label: "Euteran Audio";
+                        halign: center;
+                        styles ["title-1"]
+                    }
+
+                    Gtk.Label {
+                        label: "Audio device synchronization tool";
+                        halign: center;
+                        styles ["dim-label"]
+                    }
+
+                    Gtk.Button {
+                        label: "Teste";
+                        halign: center;
+                        clicked => $on_button_clicked(template);
+                    }
+                };
+            }
+        }
+
+        Adw.ViewSwitcherBar switcher_bar {
+            stack: stack;
+            reveal: false;
+            styles ["view_switcher_bar"]
+        }
+    }
+}

@@ -6,8 +6,8 @@
 typedef struct {
     GtkWidget *row_box;
     GtkWidget *row;
-    GtkWidget *window_parent;
     GtkWidget *list_box;
+    GtkWidget *window_parent;
     gchar     *path;
     void      *aditional_pointer;
 }EuteranDialogContainer;

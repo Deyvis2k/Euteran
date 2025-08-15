@@ -14,7 +14,7 @@ G_DEFINE_TYPE(EuteranSettings, euteran_settings, G_TYPE_OBJECT);
 
 
 EuteranSettings *euteran_settings_new(void){
-    return g_object_new(EUTERAN_TYPE_SETTINGS, NULL);
+    return g_object_new(EUTERAN_TYPE_SETTINGS, nullptr);
 }
 
 static void euteran_settings_init(EuteranSettings *self) {
@@ -38,29 +38,23 @@ static void euteran_settings_init(EuteranSettings *self) {
     char line[1024];
     while (fgets(line, sizeof(line), file_to_read)) {
         if (strncmp(line, "last_volume = ", 14) == 0) {
-            float volume = atof(line + 14);
-            self->last_volume = volume;
+            char *endptr;
+            double num = strtod(line + 14, &endptr);
+            self->last_volume = (float)num;
         } else if (strncmp(line, "last_width = ", 13) == 0) {
-            int width = atoi(line + 13);
-            self->last_width = width;
+            char *endptr;
+            long num = strtol(line + 13, &endptr, 10);
+            self->last_width = (int)num;
         } else if (strncmp(line, "last_height = ", 14) == 0) {
-            int height = atoi(line + 14);
-            self->last_height = height;
+            char *endptr;
+            long num = strtol(line + 14, &endptr, 10);
+            self->last_height = (int)num;
         }
     }
     
     fclose(file_to_read);
     g_free(link_to_save);
 }
-
-EuteranSettings *euteran_settings_get(void){
-    static EuteranSettings *singleton = NULL;
-    if (singleton == NULL) {
-        singleton = euteran_settings_new();
-    }
-    return singleton;
-}
-
 
 static void euteran_settings_dispose(GObject *object) {
     G_OBJECT_CLASS(euteran_settings_parent_class)->dispose(object);
@@ -73,8 +67,7 @@ static void euteran_settings_class_init(EuteranSettingsClass *klass) {
 
 void euteran_settings_save(EuteranSettings *self, GtkWindow *window){
      g_return_if_fail(
-        EUTERAN_IS_SETTINGS(self) &&
-        GTK_IS_WINDOW(window)
+        EUTERAN_IS_SETTINGS(self)
     );
         
 

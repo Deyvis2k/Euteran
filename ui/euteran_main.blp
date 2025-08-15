@@ -1,0 +1,315 @@
+using Gtk 4.0;
+using Gdk 4.0;
+using Adw 1;
+
+template $EuteranMainObject: Adw.ApplicationWindow{
+    title: "Euteran";
+    styles ["main_window_class"]
+    destroy => $on_window_destroy(template);
+    notify => $gtk_widget_set_visible(template);
+    vexpand: true;
+
+    Gtk.DropTarget drop_target {
+        actions: copy;
+        drop => $on_drop(template);
+    } 
+
+    Gtk.Box root_box{
+        orientation: vertical;
+        Adw.HeaderBar header_bar {
+            show-start-title-buttons: false;
+            show-title: false;
+            styles ["header_bar"]
+
+            [start]
+            Gtk.MenuButton menu_button {
+                icon-name: "open-menu-symbolic";
+                can-shrink: false;
+                styles ["menu_button"]
+                cursor: Gdk.Cursor {
+                    name: "pointer";
+                };
+
+                popover: Gtk.Popover menu_popover {
+                    has-arrow: false;
+                    halign: center;
+                    styles ["menu_popover"]
+
+                    child: Gtk.Box popover_box {
+                        orientation: vertical;
+                        spacing: 10;
+                        styles ["popover_box"]
+
+                        Gtk.Button button_select_folder {
+                            label: "Select Folder";
+                            styles ["button_select_folder"]
+                            clicked => $select_folder(template);
+                            clicked => $gtk_menu_button_popdown(menu_button);
+                        }
+                        Gtk.Button button_devices {
+                            label: "Settings";
+                            styles ["button_devices"]
+                            clicked => $setup_subwindow(template);
+                            clicked => $gtk_menu_button_popdown(menu_button);
+                        }
+                        Gtk.Button alter_theme_button {
+                            label: "LightMode";
+                            styles ["alter_theme_button"]
+                            clicked => $euteran_main_object_switch_theme(template);
+                            clicked => $gtk_menu_button_popdown(menu_button);
+                        }
+                    };
+                };
+            }
+        }
+
+        Gtk.Box main_content {
+            orientation: horizontal;
+            hexpand: true;
+            vexpand: true;
+
+            Gtk.Box left_content {
+                orientation: vertical;
+                width-request: 40;
+                vexpand: true;
+                styles ["options_and_menu_clamp"]
+
+                Gtk.StackSwitcher stack_switcher {
+                    stack: view_stack_main;
+                    orientation: vertical;
+                    halign: center;
+                    styles ["stack_switcher"]
+
+                    cursor: Gdk.Cursor {
+                        name: "pointer";
+                    };
+
+                    Gtk.GestureClick gesture_click {
+                        button: 3;
+                        pressed => $on_stack_switcher_right_click(template);
+                    }
+                }
+                Gtk.Button switcher_add_button {
+                    icon-name: "list-add-symbolic";
+                    vexpand: false;
+                    styles ["switcher_add_button"]
+
+                    clicked => $on_switcher_add_button(template);
+                }
+            }
+            
+            Gtk.Box right_content {
+                orientation: vertical;
+                hexpand: true;
+                vexpand: true;
+                styles ["main_box"]
+
+                Gtk.Grid music_display_content {
+                    hexpand: true;
+                    column-homogeneous: false;
+                    row-homogeneous: false;
+                    styles ["music_display_content_class"]
+
+
+                    Gtk.Box v_input_box {
+                        orientation: vertical;
+                        hexpand: true;
+                        halign: baseline;
+                        valign: center;
+                        margin-start: 10;
+                        styles ["v_box_generic"]
+                        layout {
+                            column: 0;
+                            row: 0;
+                            column-span: 3;
+                        }
+
+                        Gtk.Label stream_label_input {
+                            label: "Stream Input";
+                            halign: center;
+                            hexpand: true;
+                            xalign: 0;
+                            styles ["stream_label_input", "stream_label_generic"]
+                        }
+
+                        Adw.Clamp adw_clamp_input {
+                            maximum-size: 500;
+                            orientation: horizontal;
+                            child: Gtk.Box input_box {
+                                orientation: horizontal;
+                                halign: fill;
+                                hexpand: true;
+                                styles ["input_box"]
+
+                                Gtk.Button button_input_recording {
+                                    icon-name: "audio-input-microphone";
+                                    margin-start: 5;
+                                    styles ["music_button_class"]
+
+                                    cursor: Gdk.Cursor {
+                                        name: "pointer";
+                                    };
+                                    clicked => $start_recording_input(template);
+                                }
+
+                                Gtk.Button stop_recording_button {
+                                    icon-name: "media-playback-stop";
+                                    visible: false;
+                                    styles ["music_button_class"]
+                                    cursor: Gdk.Cursor stop_input_cursor {
+                                        name: "pointer";
+                                    };
+                                    clicked => $stop_audio_input_recording(template);
+                                }
+
+                                Gtk.Scale input_slider {
+                                    orientation: horizontal;
+                                    halign: fill;
+                                    hexpand: true;
+                                    styles ["progress_bar_class"]
+                                    adjustment: Gtk.Adjustment input_scale_adjustment {
+                                        lower: 0;
+                                        upper: 1;
+                                        step-increment: 0.01;
+                                    };
+                                    change-value => $on_clicked_input_slider(template);
+                                }
+                            };
+                        }
+                    }
+
+                    Gtk.Box v_output_box {
+                        orientation: vertical;
+                        hexpand: true;
+                        halign: baseline;
+                        valign: center;
+                        margin-start: 10;
+                        styles ["v_box_generic"]
+                        layout {
+                            column: 3;
+                            row: 0;
+                            column-span: 10;
+                        }
+                        Gtk.Label stream_label_output {
+                            label: "Output Stream";
+                            halign: center;
+                            hexpand: true;
+                            xalign: 0;
+                            styles ["stream_label_output","stream_label_generic"]
+                        }
+
+                        Gtk.Box output_box {
+                            orientation: horizontal;
+                            halign: fill;
+                            hexpand: true;
+                            styles ["output_box"]
+
+
+                            Gtk.Scale volume_slider {
+                                orientation: horizontal;
+                                halign: fill;
+                                hexpand: true;
+                                styles ["slider_main"]
+                                adjustment: Gtk.Adjustment volume_scale_adjustment {
+                                    lower: 0;
+                                    upper: 1;
+                                    step-increment: 0.01;
+                                };
+                                value-changed => $on_volume_changed(template);
+                            }
+
+
+                            Gtk.Scale progress_bar {
+                                orientation: horizontal;
+                                halign: fill;
+                                hexpand: true;
+                                styles ["progress_bar_class","progress_bar_size_class"]
+                                adjustment: Gtk.Adjustment progress_adjustment {
+                                    lower: 0;
+                                    upper: 1;
+                                    step-increment: 0.01;
+                                };
+                                change-value => $on_clicked_progress_bar(template);
+                            }
+
+                            Gtk.Button music_button {
+                                icon-name: "media-playback-start-symbolic";
+                                margin-start: 10;
+                                styles ["music_button_class"] 
+                                cursor: Gdk.Cursor cursor {
+                                    name: "pointer";
+                                };
+                                clicked => $pause_audio(template);
+                            }
+
+                            Gtk.Button stop_button {
+                                icon-name: "media-playback-stop-symbolic";
+                                styles ["music_button_class"]
+                                cursor: Gdk.Cursor stop_cursor {
+                                    name: "pointer";
+                                };
+                                clicked => $interrupt_audio(template);
+                            }
+                        }
+                    }
+                }
+
+                Adw.PreferencesGroup prefs_group {
+                    styles ["prefs_group"]
+
+                    Gtk.Box music_holder_box {
+                        orientation: vertical;
+                        styles ["music_holder_box"]
+
+                        Gtk.Box tag_box {
+                            orientation: horizontal;
+                            margin-top: 20;
+                            styles ["tag_box"]
+
+
+                            Gtk.Label tag_label_name {
+                                label: "Music Name";
+                                hexpand: true;
+                                styles ["tag_label_name"]
+                            }
+
+                            Gtk.Label tag_label_duration {
+                                label: "Duration";
+                                margin-end: 20;
+                                styles ["tag_label_duration"]
+                            }
+                        }
+
+                        Gtk.Box horizontal_separator {
+                            orientation: horizontal;
+                            hexpand: true;
+                            height-request: 1;
+                            halign: fill;
+                            margin-end: 10;
+                            margin-start: 10;
+                            styles ["line_class"]
+                        }
+
+                        Gtk.Stack view_stack_main {
+                            transition-duration: 250;
+                            vexpand: true;
+                            hexpand: true;
+                            Gtk.StackPage view_stack_page_main {
+                                title: "1";
+                                child: Gtk.ScrolledWindow scrolled_window {
+                                    hscrollbar-policy: never;
+                                    vscrollbar-policy: automatic;
+                                    vexpand: true;
+                                    Gtk.ListBox list_box {
+                                        selection-mode: single;
+                                        styles ["list_box"]
+                                    }
+                                };
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

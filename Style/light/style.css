@@ -3,13 +3,12 @@
 @import "devices.css";
 
 .main_window_class{
-    background-color: rgba(48,48,48,0.8);
+    background-color: rgb(230,230,230);
 }
 
 .main_box{
-    background-color: rgba(48,48,48,0.7);
+    background-color: rgb(230,230,230);
 }
-
 
 .clamp_music{
     border: none;
@@ -22,7 +21,7 @@
 }
 
 .header_bar{
-    background-color: rgba(48,48,48,0.7);
+    background-color: rgb(230,230,230);
     border: none;
     box-shadow: none;
     padding: 0px;
@@ -33,31 +32,10 @@
     border-radius: 0px;
 }
 
-.header_bar windowhandle{
-    border: none;
-    box-shadow: none;
-    border-color: transparent;
-    caret-color: transparent;
-    outline-color: transparent;
-}
-
-.header_bar headerbar windowhandle{
-    border: none;
-    box-shadow: none;
-    border-color: transparent;
-    caret-color: transparent;
-    outline-color: transparent;
-}
-
-.header_bar windowhandle box{
-    border: none;
-    box-shadow: none;
-    border-color: transparent;
-    caret-color: transparent;
-    outline-color: transparent;
-}
-
-.header_bar box widget{
+.header_bar windowhandle,
+.header_bar headerbar windowhandle,
+.header_bar windowhandle box,
+.header_bar box widget {
     border: none;
     box-shadow: none;
     border-color: transparent;
@@ -74,49 +52,68 @@
     outline-color: transparent;
 }
 
+.header_bar windowcontrols.end button{
+    color: darkgray;
+    background-color: transparent;
+    box-shadow: none;
+    caret-color: transparent;
+    outline-color: transparent;
+}
+
+.header_bar windowcontrols.end button image:not(:hover){
+    background-color: transparent;
+    box-shadow: none;
+    caret-color: transparent;
+    outline-color: transparent;
+}
+
 .line_class {
-    background-color: rgba(138,138,138,0.3);
+    background-color: rgba(50,50,50,0.2);
 }
 
 .prefs_group{
-    color: dimgray;
+    color: #444444;
 }
 
-.popover_box{
-    background-color: transparent;
-    box-shadow: none;
-    border: none;
-}
-
-.menu_popover {
-    background-color: transparent;
-    box-shadow: none;
-    border: none;
-    background-image: none;
-}
+.popover_box,
 
 .menu_popover contents{
-    background-color: rgba(48,48,48,0.9);
-    box-shadow: none;
-    border: none;
+    background-color: rgb(255,255,255);
+    border: 1px solid #444444;
+    border-radius: 10px;
+}
+
+.menu_popover contents button{
+    color: dimgrey;
+    box-shadow: rgba(0, 0, 0, 0.4) 0px 2px 4px 0px;
+    border-radius: 10px;
+}
+
+.menu_button button{
+    background-color: transparent;
     background-image: none;
 }
 
-.menu_button .image-button{
-    color: rgba(190, 190, 190, 0.8);
-}
-
-.menu_button button toggle{
+.image-button {
+    color: darkgray;
     background-color: transparent;
+    background-image: none;
+    border: none;
+    box-shadow: none;
+    border-color: transparent;
+    caret-color: transparent;
+    outline-color: transparent;
+    min-height: 24px;
+    padding: 5px;
 }
 
 .slider_main {
     min-width: 200px;
 }
 
-.slider_main slider{
+.slider_main slider {
     box-shadow: none;
-    background-color: rgba(148,162, 155, 0.95);
+    background-color: rgba(160, 160, 160, 0.95);
     border-color: transparent;
     outline-color: transparent;
     background-image: none;
@@ -136,13 +133,13 @@
 }
 
 .slider_main trough {
-    box-shadow: none;
+    background-color: rgb(200,200,200);
     min-height: 6px;
     border: none;
     border-radius: 3px;
 }
 
-.slider_main highlight{
+.slider_main highlight {
     box-shadow: none;
     border-radius: 0px;
     margin: -7px;
@@ -153,8 +150,7 @@
     transition-property: all;
 }
 
-.list_box{
-    color: white;
+.list_box {
     font-family: "RecMonoCasual Nerd Font";
     font-style: italic;
     font-kerning: normal;
@@ -162,27 +158,34 @@
     line-height: 1;
     font-weight: normal;
     font-size: 14px;
-    background-color: rgba(48,48,48,0.01);
     box-shadow: none;
+    border: none;
+    background-color: rgb(230,230,230);
+}
+
+.list_box row.activatable:hover {
+    background-color: rgb(190,190,190);
+}
+
+.list_box label{
+    color: dimgrey;
 }
 
 .list_box row.activatable:not(:hover):not(:selected) {
-    background-color: rgba(48,48,48,0.01);
+    background-color: rgb(230,230,230);
     box-shadow: none;
 }
 
-.list_box row.activatable{
+.list_box row.activatable {
     box-shadow: none;
     padding: 0px;
 }
 
-
-
-.music_holder_grid{
-    border: 0.3px ridge floralwhite;
+.music_holder_grid {
+    border: 0.3px ridge #666666;
 }
 
-.music_button_class{
+.music_button_class {
     background: transparent;
     border: none;
     box-shadow: none;
@@ -192,71 +195,78 @@
     -gtk-icon-size: 15px;
 }
 
-.music_button_class image{
+.music_button_class image {
     border: none;
-    color: rgb(100, 100, 100);
+    color: rgb(180, 180, 180);
     box-shadow: none;
     -gtk-icon-size: 15px;
     -gtk-icon-style: symbolic;
 }
 
-.label_devices_class{
-    color: dimgrey;
-    font-family: "JetbrainsMono Nerd Font";
-    font-size: 12px;
-    font-weight: bold;
-}
 
-.stack_switcher{
+
+.stack_switcher {
     min-width: 0px;
     margin: 0px;
     border-radius: 0px;
 }
 
-.stack_switcher button{
+.stack_switcher button {
     min-width: 0px;
     margin: 0px;
     border-radius: 0px;
+    color: darkgray;
     background-color: transparent;
     background-image: none;
     border-color: transparent;
 }
 
-.stack_switcher button:checked label{
+.stack_switcher button:checked label {
     background-color: transparent;
-    border-bottom: 0.9px solid dimgrey;
+    border-bottom: 0.9px solid #444444;
     border-radius: 0px;
 }
 
-.switcher_add_button{
+.switcher_add_button {
     background-color: transparent;
     border-radius: 0px;
     background-image: none;
-    border-color: transparent;
-}
-
-.options_and_menu_clamp{
-    background-color: rgba(48,48,48,0.7);
+    border: none;
     box-shadow: none;
-    border-right: 0.3px solid dimgrey;
+    border-color: transparent;
+}
+
+.options_and_menu_clamp {
+    box-shadow: none;
+    border-right: 0.3px solid #666666;
     border-radius: 0px;
 }
 
-.input_box{
-    border-right: 0.3px ridge dimgrey;
+.input_box {
+    border-right: 0.3px ridge #666666;
     padding-right: 10px;
 }
 
-.output_box{
+.output_box {
     margin-right: 5px;
 }
 
-.input_slider_class{
+.input_slider_class {
     min-width: 100px;
 }
 
+.stream_label_generic {
+    color: #444444;
+    border-bottom: 0.3px ridge #666666;
+}
 
-.stream_label_generic{
-    color: dimgrey;
-    border-bottom: 0.3px ridge dimgrey;
+.view_stack_class{
+    color: #444444;
+}
+
+.title-2 {
+    color: #444444;
+    font-weight: bold;
+    font-size: 14px;
+    font-family: "JetbrainsMono Nerd Font";
 }

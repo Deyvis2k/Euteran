@@ -22,9 +22,8 @@ void vlog_base(
 )
 {
     char tstamp[9];               
-    time_t now = time(NULL);
+    time_t now = time(nullptr);
     strftime(tstamp, sizeof tstamp, "%H:%M:%S", localtime(&now));
-
 
     FILE *out = stdout;
     

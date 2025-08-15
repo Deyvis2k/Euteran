@@ -9,3 +9,6 @@ new_core
 cmake-build-debug*/
 .idea/
 .vscode/
+temp2/
+.clang-tidy
+.nvim_bany

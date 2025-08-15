@@ -40,9 +40,15 @@ void run_subprocess_async(const gchar *command_str,
 void 
 free_context(AsyncOperationContext *context)
 {
+    const gchar *file = __FILE__;
+    const gchar *filename_ = strrchr(file, '/') + 1;
+
+    log_info("I'm being called at line: %d, from %s", __LINE__, filename_);
+
     if (!context) return;
 
     if(context->cancellable){
+        log_info("Cancelling cancellable");
         g_cancellable_cancel(context->cancellable);
         g_clear_object(&context->cancellable);
     }
@@ -53,7 +59,4 @@ free_context(AsyncOperationContext *context)
     if(context->main_object_ref) context->main_object_ref = NULL;
     context->type = OP_NONE;
     g_free(context);
-
-
-    log_warning("Context freed");
 }

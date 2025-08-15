@@ -17,7 +17,6 @@ int euteran_settings_get_window_width(EuteranSettings *self);
 int euteran_settings_get_window_height(EuteranSettings *self);
 float euteran_settings_get_last_volume(EuteranSettings *self);
 void euteran_settings_set_last_volume(EuteranSettings *self, float volume);
-EuteranSettings *euteran_settings_get(void);
 
 G_END_DECLS
 

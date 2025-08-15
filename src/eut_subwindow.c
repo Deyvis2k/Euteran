@@ -1,196 +1,494 @@
 #include "eut_subwindow.h"
+#include "adwaita.h"
 #include "eut_logs.h"
+#include "eut_subwindowimpl.h"
 #include "eut_audiodevices.h"
-#include "eut_main_object.h"
 #include "glib.h"
 #include "gtk/gtk.h"
-#include "gtk/gtkshortcut.h"
-#include "eut_utils.h"
+#include <pwd.h>
 
-static gboolean opened_window = FALSE;
-static int last_width, last_height = 0;
+#define initialize_hashs_ptr(ptr, item, index) \
+    ((void **)(ptr))[index] = (void *)(item); \
 
-void 
-on_setup_list_item(
-    GtkSignalListItemFactory    *factory,
-    GtkListItem                 *list_item,
-    gpointer                    user_data
+
+
+
+struct _EutSubwindow {
+    AdwWindow parent_instance;
+
+    gboolean opened_window;
+
+    GtkDropDown *sink_dropdown;
+    GtkDropDown *source_dropdown;
+    GtkDropDown *theme_dropdown;
+    GtkDropDown *icon_dropdown;
+    GtkStringList *sink_list;
+    GtkStringList *source_list;
+
+    GtkStringList *theme_name_list;
+    GtkStringList *theme_icon_list;
+    GtkButton *confirm_button;
+
+    GtkSettings *main_object_settings;
+
+
+    
+
+    GHashTable* themes_hash_table;
+    GHashTable* icons_hash_table;
+
+    GHashTable* hashs[MAX_HASH_ITEMS];
+    GtkStringList* dropdown_lists[MAX_HASH_ITEMS];
+
+    struct audio_devices *audio_devices;
+
+    struct {
+        int width;
+        int height;
+    } WinAllocatedSize;
+};
+
+G_DEFINE_TYPE(EutSubwindow, eut_subwindow, ADW_TYPE_WINDOW);
+
+
+void
+on_button_clicked
+(
+    EutSubwindow *self
 )
 {
-    GtkWidget *label = gtk_label_new(NULL);
-    gtk_label_set_ellipsize(GTK_LABEL(label), PANGO_ELLIPSIZE_END);
-    gtk_widget_set_hexpand(label, TRUE);
-    gtk_list_item_set_child(GTK_LIST_ITEM(list_item), label);
-}
-
-void on_bind_list_item(GtkSignalListItemFactory *factory,
-                       GtkListItem *list_item,
-                       gpointer user_data)
-{
-    GtkLabel *label = GTK_LABEL(gtk_list_item_get_child(list_item));
-    if (!label) {
-        log_error("Erro ao obter label");
-        return;
+    if(EUT_IS_SUBWINDOW(self)) {
+        log_info("I'm subwindow");
     }
-
-    const char *str = gtk_list_item_get_item(list_item);
-    GtkDropDown *dropdown = GTK_DROP_DOWN(user_data); 
-    if (str && g_utf8_validate(str, -1, NULL)) {
-        gtk_label_set_text(label, str);
-    } 
-
-    if (dropdown) {
-        GtkStringList *model = GTK_STRING_LIST(gtk_drop_down_get_model(dropdown));
-        if (model) {
-            int position = gtk_list_item_get_position(list_item);
-            const char *original = gtk_string_list_get_string(model, position);
-            if (original && g_utf8_validate(original, -1, NULL)) {
-                gtk_label_set_text(label, original);
-            }
-        }
+    else {
+        log_info("I'm not subwindow");
     }
 }
 
 static void 
-free_audio_device(gpointer data) {
-    struct audio_device* device = (struct audio_device*)data;
-    if (device) {
-        g_free(device->node_name);
-        g_free(device->node_description);
-        free(device);
+eut_subwindow_dispose(GObject *object) 
+{
+    EutSubwindow *self = EUT_SUBWINDOW(object);
+
+    log_warning("Cleaning Euteran Subwindow");
+
+    if (self->themes_hash_table) {
+        g_hash_table_destroy(self->themes_hash_table);
+        self->themes_hash_table = nullptr;
     }
+
+   if(self->audio_devices) {
+        if(self->audio_devices->audio_device_sink) g_list_free(self->audio_devices->audio_device_sink);
+        if(self->audio_devices->audio_device_source) g_list_free(self->audio_devices->audio_device_source);
+        free(self->audio_devices);
+        self->audio_devices = nullptr;
+    }
+
+    G_OBJECT_CLASS(eut_subwindow_parent_class)->dispose(object);
 }
 
 static void 
-on_window_destroy(
-    GtkWidget   *window, 
-    gpointer    user_data
-) 
+eut_subwindow_class_init(EutSubwindowClass *klass) 
 {
-    struct audio_devices *audio_devices = (struct audio_devices *)user_data;
-    if (audio_devices) {
-        if(audio_devices->audio_device_sink)
-            g_list_free_full(audio_devices->audio_device_sink, free_audio_device);
-        if(audio_devices->audio_device_source)
-            g_list_free_full(audio_devices->audio_device_source, free_audio_device);
-        free(audio_devices);
-    }
+    GObjectClass *object_class = G_OBJECT_CLASS(klass);
+    GtkWidgetClass *widget_class = GTK_WIDGET_CLASS(klass);
+    object_class->dispose = eut_subwindow_dispose;
 
-    gtk_window_get_default_size(GTK_WINDOW(window), &last_width, &last_height);
+    gtk_widget_class_set_template_from_resource(widget_class, "/org/euteran/euteran_audio_devices.ui");
 
-    opened_window = FALSE;
-}
-
-gboolean on_key_press(
-    GtkEventControllerKey *controller, 
-    guint                 keyval,
-    guint                 keycode,
-    GdkModifierType       state,
-    gpointer              user_data
-) 
-{
-    GtkWindow *window = GTK_WINDOW(user_data);
-    if (keyval == GDK_KEY_Escape) {
-        gtk_window_close(window);
-        return TRUE;
-    }
-    return FALSE;
-}
-
-void construct_widget(GtkWidget *button, gpointer user_data) {
-    EuteranMainObject *wd = EUTERAN_MAIN_OBJECT(user_data);
-    GtkWidget *window_parent = GTK_WIDGET(euteran_main_object_get_widget_at(wd, WINDOW_PARENT));
-    if (!GTK_IS_WIDGET(window_parent) || window_parent == NULL) {
-        log_error("Erro: window nao eh um GtkWidget");
-        return;
-    }
-    if (opened_window) {
-        log_warning("Janela ja aberta");
-        return;
-    }
-    opened_window = TRUE;
-
-    GtkWidget *menu_button_object = GTK_WIDGET(euteran_main_object_get_widget_at(wd, MENU_BUTTON));
-    if (menu_button_object)
-        gtk_menu_button_popdown(GTK_MENU_BUTTON(menu_button_object));
+    gtk_widget_class_bind_template_child(widget_class, EutSubwindow, sink_dropdown);
+    gtk_widget_class_bind_template_child(widget_class, EutSubwindow, source_dropdown);
+    gtk_widget_class_bind_template_child(widget_class, EutSubwindow, theme_dropdown);
+    gtk_widget_class_bind_template_child(widget_class, EutSubwindow, sink_list);
+    gtk_widget_class_bind_template_child(widget_class, EutSubwindow, source_list);
+    gtk_widget_class_bind_template_child(widget_class, EutSubwindow, theme_name_list);
+    gtk_widget_class_bind_template_child(widget_class, EutSubwindow, theme_icon_list);
+    gtk_widget_class_bind_template_child(widget_class, EutSubwindow, icon_dropdown);
+    gtk_widget_class_bind_template_child(widget_class, EutSubwindow, confirm_button);
     
-    struct audio_devices *audio_devices = g_new0(struct audio_devices, 1);
-    audio_devices->audio_device_sink = get_audio_devices(COMMAND_AUDIO_SINK);
-    audio_devices->audio_device_source = get_audio_devices(COMMAND_AUDIO_SOURCE);
+    gtk_widget_class_bind_template_callback(widget_class, on_button_clicked);
+    gtk_widget_class_bind_template_callback(widget_class, on_dropdown_theme_selected);
+    gtk_widget_class_bind_template_callback(widget_class, on_dropdown_icon_selected);
 
-    GtkCssProvider *css_provider = gtk_css_provider_new();
-    gtk_css_provider_load_from_path(css_provider, "Style/style.css");
+}
 
-    gtk_style_context_add_provider_for_display(gdk_display_get_default(),
-                                              GTK_STYLE_PROVIDER(css_provider),
-                                              GTK_STYLE_PROVIDER_PRIORITY_USER);
+static void 
+eut_subwindow_init(EutSubwindow *self) 
+{
+    gtk_widget_init_template(GTK_WIDGET(self));
+    self->opened_window = FALSE;
+    self->WinAllocatedSize.width = 600;
+    self->WinAllocatedSize.height = 400;
+    self->themes_hash_table = nullptr;
+    self->icons_hash_table = nullptr;
+    self->audio_devices = nullptr;
 
+    initialize_hashs_ptr(self->hashs, self->themes_hash_table, THEME_HASH);
+    initialize_hashs_ptr(self->hashs, self->icons_hash_table, ICON_HASH);
 
+    initialize_hashs_ptr(self->dropdown_lists, self->theme_name_list, THEME_HASH);
+    initialize_hashs_ptr(self->dropdown_lists, self->theme_icon_list, ICON_HASH);
 
-    GtkBuilder *builder = gtk_builder_new_from_file("ux/euteran_audio_devices.ui");
+}
 
-    GtkWidget *new_window = BUILDER_GET(builder, "Euteran-audio_window");
-    GtkWidget *box = BUILDER_GET(builder, "main_box");
-    GtkWidget *sink_label = BUILDER_GET(builder, "sink_label");
-    GtkWidget *source_label = BUILDER_GET(builder, "source_label");
-    GtkWidget *confirm_button = BUILDER_GET(builder, "confirm_button");
-    GtkStringList *virtual_model_audio_sink = GTK_STRING_LIST(gtk_builder_get_object(builder, "sink_list"));
-    GtkStringList *virtual_model_audio_source = GTK_STRING_LIST(gtk_builder_get_object(builder, "source_list"));
-    GtkDropDown *dropdown_sink = GTK_DROP_DOWN(gtk_builder_get_object(builder, "sink_dropdown"));
-    GtkDropDown *dropdown_source = GTK_DROP_DOWN(gtk_builder_get_object(builder, "source_dropdown"));
+EutSubwindow *
+eut_subwindow_new() 
+{
+    return g_object_new(TYPE_EUT_SUBWINDOW, nullptr);   
+}
 
-    g_return_if_fail( 
-        new_window                  != NULL &&
-        box                         != NULL && 
-        sink_label                  != NULL && 
-        source_label                != NULL && 
-        confirm_button              != NULL && 
-        virtual_model_audio_sink    != NULL && 
-        virtual_model_audio_source  != NULL && 
-        dropdown_sink               != NULL && 
-        dropdown_source             != NULL
-    );
-    gtk_window_set_default_size(GTK_WINDOW(new_window), last_width, last_height);
-    GtkEventController *controller = gtk_event_controller_key_new();
-    gtk_widget_add_controller(new_window, controller);
-
-    for(GList* node = audio_devices->audio_device_sink; node != NULL; node = node->next) {
+void 
+eut_subwindow_fill_stringlist
+(
+    EutSubwindow *self
+)
+{
+    for(GList* node = self->audio_devices->audio_device_sink; node != nullptr; node = node->next) {
         struct audio_device* audio_device = (struct audio_device*)node->data;
-        if (audio_device->node_description != NULL && strlen(audio_device->node_description) != 0) {
-            if (g_utf8_validate(audio_device->node_description, -1, NULL)) {
-                gtk_string_list_append(virtual_model_audio_sink, audio_device->node_description);
+        if (audio_device->node_description != nullptr && strlen(audio_device->node_description) != 0) {
+            if (g_utf8_validate(audio_device->node_description, -1, nullptr)) {
+                gtk_string_list_append(self->sink_list, audio_device->node_description);
             } 
             
         } 
     }
-
-    for(GList* node = audio_devices->audio_device_source; node != NULL; node = node->next) {
+    for(GList* node = self->audio_devices->audio_device_source; node != nullptr; node = node->next) {
         struct audio_device* audio_device = (struct audio_device*)node->data;
-        if (audio_device->node_description != NULL && strlen(audio_device->node_description) != 0
-            && g_utf8_validate(audio_device->node_description, -1, NULL)
+        if (audio_device->node_description != nullptr && strlen(audio_device->node_description) != 0
+            && g_utf8_validate(audio_device->node_description, -1, nullptr)
         ) {
-            gtk_string_list_append(virtual_model_audio_source, audio_device->node_description);
+            gtk_string_list_append(self->source_list, audio_device->node_description);
         } else {
             log_warning("Device sem descricao");
         }
     }
+}
 
-    GtkListItemFactory *factory_sink = gtk_signal_list_item_factory_new();
-    GtkListItemFactory *factory_source = gtk_signal_list_item_factory_new();
+void 
+eut_subwindow_set_drop_down
+(
+    EutSubwindow *self,
+    GtkDropDown *drop_down,
+    enum type_audio_device type
+) {
+    g_return_if_fail(EUT_IS_SUBWINDOW(self) && drop_down != nullptr);
 
-    g_signal_connect(factory_sink, "setup", G_CALLBACK(on_setup_list_item), dropdown_sink);
-    g_signal_connect(factory_sink, "bind", G_CALLBACK(on_bind_list_item), dropdown_sink);
+    if (type == AUDIO_SOURCE) {
+        self->source_dropdown = drop_down;
+    } else {
+        self->sink_dropdown = drop_down;
+    }
+}
 
-    g_signal_connect(factory_source, "setup", G_CALLBACK(on_setup_list_item), dropdown_source);
-    g_signal_connect(factory_source, "bind", G_CALLBACK(on_bind_list_item), dropdown_source);
+GtkWindow 
+*eut_subwindow_get_window
+(
+    EutSubwindow *self
+) {
+    g_return_val_if_fail(EUT_IS_SUBWINDOW(self), nullptr);
 
-    gtk_drop_down_set_factory(dropdown_source, GTK_LIST_ITEM_FACTORY(factory_source));
-    gtk_drop_down_set_factory(dropdown_sink, GTK_LIST_ITEM_FACTORY(factory_sink));
+    return GTK_WINDOW(self);
+}
 
-    g_signal_connect(new_window, "destroy", G_CALLBACK(on_window_destroy), audio_devices);
-    g_signal_connect(controller, "key-pressed", G_CALLBACK(on_key_press), GTK_WINDOW(new_window));
+GtkStringList *
+eut_subwindow_get_stringlist(
+    EutSubwindow             *self, 
+    enum type_audio_device   type
+)
+{
+    g_return_val_if_fail(EUT_IS_SUBWINDOW(self), nullptr);
 
-    gtk_widget_set_visible(new_window, TRUE);
-    g_object_unref(css_provider);
-    g_object_unref(builder);
+    return type == AUDIO_SOURCE ? self->source_list : self->sink_list;
+}
+
+
+void 
+eut_subwindow_init_audio_devices(EutSubwindow *self)
+{
+    g_return_if_fail(EUT_IS_SUBWINDOW(self));
+
+    if(self->audio_devices != nullptr) return;
+
+    self->audio_devices = g_new0(struct audio_devices, 1);
+    self->audio_devices->audio_device_sink = get_audio_devices(COMMAND_AUDIO_SINK);
+    self->audio_devices->audio_device_source = get_audio_devices(COMMAND_AUDIO_SOURCE);
+
+    eut_subwindow_fill_stringlist(self);
+}
+
+void 
+eut_subwindow_set_window_visibility
+(
+    EutSubwindow *self,
+    gboolean visible
+) {
+    g_return_if_fail(EUT_IS_SUBWINDOW(self));
+
+    gtk_widget_set_visible(GTK_WIDGET(self), visible);
+}
+
+void 
+eut_subwindow_set_allocated_window_size
+(
+    EutSubwindow *self
+)
+{
+    g_return_if_fail(EUT_IS_SUBWINDOW(self));
+
+    int width, height;
+    gtk_window_get_default_size(GTK_WINDOW(self), &width, &height);
+    self->WinAllocatedSize.width = width;
+    self->WinAllocatedSize.height = height;
+}
+
+void 
+eut_subwindow_set_window_size
+(
+    EutSubwindow *self
+)
+{
+    g_return_if_fail(EUT_IS_SUBWINDOW(self));
+
+    gtk_window_set_default_size(GTK_WINDOW(self), self->WinAllocatedSize.width, self->WinAllocatedSize.height);
+}
+
+
+GtkDropDown *
+eut_subwindow_get_dropdown
+(
+    EutSubwindow *self,
+    enum type_dropdown type
+) {
+    g_return_val_if_fail(EUT_IS_SUBWINDOW(self), nullptr);
+
+    switch (type) {
+        case DROPDOWN_SOURCE:
+            return self->source_dropdown;
+        case DROPDOWN_SINK:
+            return self->sink_dropdown;
+        case DROPDOWN_THEME:
+            return self->theme_dropdown;
+        case DROPDOWN_ICON:
+            return self->icon_dropdown;
+        default:
+            return nullptr;
+    }
+}
+
+static gboolean 
+is_subdirectory_empty
+(
+    const gchar* subdirectory_path
+)
+{
+    DIR *dir = opendir(subdirectory_path);
+    if(!dir){
+        return TRUE;
+    }
+
+    struct dirent *entry;
+    while((entry = readdir(dir)) != nullptr){
+        if(strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0){
+            closedir(dir);
+            return FALSE;
+        }
+    }
+    closedir(dir);
+    return TRUE;
+}
+
+static const gchar *
+get_home_name
+(
+    void
+)
+{
+    const gchar *home = g_get_home_dir();
+    if(home == nullptr) return nullptr;
+    return home;
+}
+
+static char ** 
+open_dir_and_append_to_hash
+(
+    enum hash_table_type type,
+    size_t*   theme_count
+)
+{
+    const char *format_paths[][3] = {
+        {"/usr/share/icons/", "%s/.local/share/icons/", "%s/.icons/"},
+        {"/usr/share/themes/", "%s/.local/share/themes/", "%s/.themes/"},
+    };
+
+    char all_posible_paths[MAX_HASH_ITEMS][3][1024];
+
+    const gchar *home_name = get_home_name();
+    if(home_name == nullptr) return nullptr;
+
+    for(int i = 0; i < MAX_HASH_ITEMS; i++){
+        strcpy(all_posible_paths[i][0], format_paths[i][0]);
+        g_snprintf(all_posible_paths[i][1], sizeof(all_posible_paths[i][1]), format_paths[i][1], home_name);
+        g_snprintf(all_posible_paths[i][2], sizeof(all_posible_paths[i][2]), format_paths[i][2], home_name);
+    }
+
+    const char (*paths)[1024] = all_posible_paths[type];
+
+    size_t MAX_ITEMS = 10;
+    char **system_themes = calloc(MAX_ITEMS, sizeof(char*));
+    gchar subdir[1024] = {0};
+    for(const char *path = *paths; path != nullptr && path[0] != '\0'; path = *(++paths)) {
+        DIR *dir = opendir(path);
+        if(dir == nullptr) continue;
+        
+        struct dirent *entry;
+        while((entry = readdir(dir)) != nullptr) {
+            if(*theme_count == MAX_ITEMS){
+                MAX_ITEMS *= 2;
+                char **temp = realloc(system_themes, sizeof(char *) * MAX_ITEMS);
+                if(temp != nullptr){
+                    system_themes = temp;
+                } 
+            }
+            if (entry->d_type == DT_DIR && entry->d_name[0] != '.') {
+                g_snprintf(subdir, sizeof(subdir), "%s%s", path, entry->d_name);
+                if (is_subdirectory_empty(subdir)) {
+                    log_info("Skipping empty subdirectory: %s", subdir);
+                    continue;
+                }
+
+
+                system_themes[*theme_count] = strdup(entry->d_name);
+                (*theme_count)++;
+            }
+        }
+
+        closedir(dir);
+    }
+    return system_themes;
+}
+
+
+
+static void 
+append_to_string_list
+(
+    GtkStringList *model_to_append,
+    GList *sorted_list,
+    enum hash_table_type type
+)
+{
+    switch (type) {
+        case ICON_HASH:
+            GtkIconTheme *icon_theme = gtk_icon_theme_get_for_display(gdk_display_get_default());
+            gchar *icon_name = gtk_icon_theme_get_theme_name(icon_theme);
+            gboolean found = FALSE;
+            for (GList *node = sorted_list; node != nullptr; node = node->next) {
+                if(icon_name != nullptr && found == FALSE) {
+                    gtk_string_list_append(model_to_append, icon_name);
+                    found = TRUE;
+                }
+                if(g_strcmp0(icon_name, node->data) != 0) gtk_string_list_append(model_to_append, node->data);
+            }
+            break;
+        case THEME_HASH:
+            GtkSettings *settings = gtk_settings_get_default();
+            gchar *gtk_theme_name = nullptr;
+            gboolean found_ = FALSE;
+            g_object_get(settings, "gtk-theme-name", &gtk_theme_name, nullptr);
+            for (GList *node = sorted_list; node != nullptr; node = node->next) {
+                if(gtk_theme_name != nullptr && found_ == FALSE) {
+                    gtk_string_list_append(model_to_append, gtk_theme_name);
+                    found_ = TRUE;
+                }
+                if(g_strcmp0(gtk_theme_name, node->data) != 0) gtk_string_list_append(model_to_append, node->data);
+            }
+            break;
+        default:
+            break;
+    }
+}
+
+void 
+eut_subwindow_fill_hashtable
+(
+    EutSubwindow *self,
+    enum hash_table_type type
+)
+{
+    g_return_if_fail(EUT_IS_SUBWINDOW(self) && (type < MAX_HASH_ITEMS && type >= 0));
+    GHashTable *hash_to_implement = self->hashs[type];
+    if(hash_to_implement != nullptr) {
+        log_error("already implemented %d", type);
+    }
+
+    GtkStringList *model_to_append = self->dropdown_lists[type];
+
+    GHashTableIter iter;
+    GList *sorted_list = nullptr;
+    hash_to_implement = g_hash_table_new_full(g_str_hash, g_str_equal, free, nullptr);
+
+    size_t theme_count = 0;
+    char **system_themes;
+
+    system_themes = open_dir_and_append_to_hash(type, &theme_count);
+
+    for(size_t i = 0; i < theme_count; i++) {
+        g_hash_table_add(hash_to_implement, g_strdup(system_themes[i]));
+        free(system_themes[i]);
+    }
+    
+
+    free(system_themes);
+
+    char *theme;
+    g_hash_table_iter_init(&iter, hash_to_implement);
+    while (g_hash_table_iter_next(&iter, (gpointer *)&theme, nullptr)) {
+        sorted_list = g_list_insert_sorted(sorted_list, theme, (GCompareFunc)strcmp);
+    }
+
+    append_to_string_list(model_to_append, sorted_list, type);
+
+
+    g_list_free(sorted_list);
+}
+
+gboolean
+eut_subwindow_get_opened_window(
+    EutSubwindow *self
+) 
+{
+    g_return_val_if_fail(EUT_IS_SUBWINDOW(self), FALSE);
+
+    return self->opened_window;    
+}
+
+void 
+eut_subwindow_set_opened_window
+(
+    EutSubwindow *self,
+    gboolean     opened
+) {
+    g_return_if_fail(EUT_IS_SUBWINDOW(self));
+
+    self->opened_window = opened;
+}
+
+void eut_subwindow_set_settings
+(
+    EutSubwindow *self, 
+    GtkSettings *settings
+)
+{
+    g_return_if_fail(EUT_IS_SUBWINDOW(self) && settings != nullptr);
+
+    self->main_object_settings = settings;
+}
+
+GtkSettings* eut_subwindow_get_main_object_settings
+(
+    EutSubwindow *self
+)
+{
+    g_return_val_if_fail(EUT_IS_SUBWINDOW(self), nullptr);
+    return self->main_object_settings;
 }
